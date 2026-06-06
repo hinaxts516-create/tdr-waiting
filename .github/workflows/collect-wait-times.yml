@@ -3,8 +3,8 @@ name: Collect wait times
 # ライブ待ち時間を定期収集して data/ にコミットする
 on:
   schedule:
-    # cron は UTC。30分間隔で UTC 0:00〜12:30（≒ JST 9:00〜21:30）に実行
-    - cron: "*/30 0-12 * * *"
+    # cron は UTC。10分間隔で UTC 0:00〜12:50（≒ JST 9:00〜21:50）に実行
+    - cron: "*/10 0-12 * * *"
   workflow_dispatch: {} # 手動実行も可能（テスト用）
 
 # data/ への push に必要

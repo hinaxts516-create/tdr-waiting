@@ -19,7 +19,7 @@
 - 非公式APIのため将来の仕様変更に注意。取得失敗時は予測値へ自動フォールバック
 
 ## 過去データの蓄積（自動収集）
-- `.github/workflows/collect-wait-times.yml` が GitHub Actions で 30 分おきに実行
+- `.github/workflows/collect-wait-times.yml` が GitHub Actions で 10 分おきに実行
 - `scripts/collect.mjs` がライブ待ち時間を取得し `data/history-YYYY-MM.csv` に追記・自動コミット
 - 形式の詳細は [`data/README.md`](data/README.md)
 - 手動テスト: リポジトリの **Actions** タブ → 「Collect wait times」→ **Run workflow**

@@ -1,6 +1,6 @@
 # data/ — 待ち時間の蓄積データ
 
-GitHub Actions（`.github/workflows/collect-wait-times.yml`）が 30 分おきに
+GitHub Actions（`.github/workflows/collect-wait-times.yml`）が 10 分おきに
 ライブ待ち時間を取得し、月ごとの CSV に追記していきます。
 
 ## ファイル
