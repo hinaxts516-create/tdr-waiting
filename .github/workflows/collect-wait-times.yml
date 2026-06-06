@@ -1,0 +1,42 @@
+name: Collect wait times
+
+# ライブ待ち時間を定期収集して data/ にコミットする
+on:
+  schedule:
+    # cron は UTC。30分間隔で UTC 0:00〜12:30（≒ JST 9:00〜21:30）に実行
+    - cron: "*/30 0-12 * * *"
+  workflow_dispatch: {} # 手動実行も可能（テスト用）
+
+# data/ への push に必要
+permissions:
+  contents: write
+
+# 収集ジョブが重ならないようにする
+concurrency:
+  group: collect-wait-times
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Collect live wait times
+        run: node scripts/collect.mjs
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --staged --quiet; then
+            echo "変更なし（スキップ）"
+          else
+            git commit -m "data: collect wait times $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi

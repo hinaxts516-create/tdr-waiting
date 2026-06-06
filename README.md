@@ -18,6 +18,13 @@
 - パーク entity ID は `data.js` の `PARK_ENTITY`、各アトラクションの対応IDは `apiId` で管理
 - 非公式APIのため将来の仕様変更に注意。取得失敗時は予測値へ自動フォールバック
 
+## 過去データの蓄積（自動収集）
+- `.github/workflows/collect-wait-times.yml` が GitHub Actions で 30 分おきに実行
+- `scripts/collect.mjs` がライブ待ち時間を取得し `data/history-YYYY-MM.csv` に追記・自動コミット
+- 形式の詳細は [`data/README.md`](data/README.md)
+- 手動テスト: リポジトリの **Actions** タブ → 「Collect wait times」→ **Run workflow**
+- 注意: スケジュール実行は workflow ファイルが `main` に push されてから有効になります
+
 ## 使い方（ローカル）
 `index.html` をブラウザで開くだけで動作します。
 
