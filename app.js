@@ -8,8 +8,14 @@ const state = {
   hour: 12,
   weather: "sunny",
   sort: "wait",
+  mode: "predict", // "predict" | "live"
   selected: null,
 };
+
+/* 時刻をパーク運営時間内にクランプ */
+function clampHour(h) {
+  return Math.min(PARK_HOURS.close, Math.max(PARK_HOURS.open, h));
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -62,15 +68,58 @@ function init() {
   $("weatherInput").addEventListener("change", (e) => { state.weather = e.target.value; render(); });
   $("sortInput").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
 
+  $("modeTabs").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    state.mode = btn.dataset.mode;
+    [...$("modeTabs").children].forEach((b) => b.classList.toggle("active", b === btn));
+    if (state.mode === "live" && !RealTime.ok) loadLive();
+    setModeStatus();
+    render();
+  });
+
   $("modalClose").addEventListener("click", closeModal);
   $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
   render();
+  loadLive(); // 起動時にバックグラウンドで実データ取得
+}
+
+/* ---- 実データの取得と状態表示 ---- */
+async function loadLive() {
+  setModeStatus("loading");
+  await RealTime.fetchAll();
+  setModeStatus();
+  if (state.mode === "live") render();
+}
+
+function setModeStatus(stateStr) {
+  const el = $("modeStatus");
+  el.className = "mode-status";
+  if (stateStr === "loading") { el.textContent = "実データ取得中…"; return; }
+  if (state.mode !== "live") {
+    el.textContent = RealTime.ok ? "実データ利用可（ライブに切替できます）" : "";
+    return;
+  }
+  if (RealTime.ok) {
+    const t = RealTime.updatedAt;
+    const hh = String(t.getHours()).padStart(2, "0");
+    const mm = String(t.getMinutes()).padStart(2, "0");
+    el.innerHTML = `<span class="live-dot"></span>LIVE ・ 最終更新 ${hh}:${mm} ・ 提供: themeparks.wiki（非公式）`;
+  } else {
+    el.className = "mode-status err";
+    el.textContent = "⚠ 実データの取得に失敗しました（予測値で代替表示）";
+  }
 }
 
 /* ---- 一覧描画 ---- */
 function render() {
+  state.mode === "live" ? renderLive() : renderPredict();
+}
+
+/* 予測モード */
+function renderPredict() {
   const list = ATTRACTIONS[state.park].map((att) => ({
     att,
     wait: WaitModel.predict(att, state.date, state.hour, state.weather),
@@ -80,7 +129,6 @@ function render() {
   else if (state.sort === "waitAsc") list.sort((a, b) => a.wait - b.wait);
   else list.sort((a, b) => a.att.name.localeCompare(b.att.name, "ja"));
 
-  // バッジ更新
   const crowd = computeCrowdIndex(state.date, state.weather);
   $("mCrowd").innerHTML = `混雑指数: <b>${crowd.toFixed(2)}</b>（${WEATHER_LABEL[state.weather]}・${fmtDow(state.date)}曜）`;
   $("sectionTitle").textContent =
@@ -103,13 +151,93 @@ function render() {
   }
 }
 
+/* ライブモード（実データ） */
+function renderLive() {
+  $("sectionTitle").textContent = `${PARK_LABELS[state.park]} ／ 現在のリアルタイム待ち時間`;
+
+  // 並び替え用のソートキー: 運営中=待ち時間, それ以外=-1(末尾)
+  const rows = ATTRACTIONS[state.park].map((att) => {
+    const live = RealTime.get(att);
+    const operating = live && live.status === "OPERATING" && live.wait != null;
+    return { att, live, operating, sortVal: operating ? live.wait : -1 };
+  });
+  if (state.sort === "wait") rows.sort((a, b) => b.sortVal - a.sortVal);
+  else if (state.sort === "waitAsc")
+    rows.sort((a, b) => (a.operating ? a.sortVal : 1e9) - (b.operating ? b.sortVal : 1e9));
+  else rows.sort((a, b) => a.att.name.localeCompare(b.att.name, "ja"));
+
+  const grid = $("grid");
+  grid.innerHTML = "";
+  for (const { att, live, operating } of rows) {
+    const card = document.createElement("div");
+    card.className = "card";
+    let body;
+    if (operating) {
+      const lv = level(live.wait);
+      body = `<div class="wait"><span class="num">${live.wait}</span><span class="unit">分</span></div>
+              <span class="badge ${lv.cls}">${lv.text}</span>`;
+    } else if (live) {
+      card.classList.add("dim");
+      body = `<div class="status-txt">${RealTime.statusLabel(live.status)}</div>`;
+    } else {
+      card.classList.add("dim");
+      body = `<div class="status-txt">実データなし</div>`;
+    }
+    card.innerHTML = `
+      <div class="name">${att.name}</div>
+      <div class="meta">${att.area}・${att.type}</div>
+      ${body}
+    `;
+    card.addEventListener("click", () => openModal(att));
+    grid.appendChild(card);
+  }
+
+  if (!RealTime.ok && !rows.some((r) => r.live)) {
+    grid.innerHTML = `<div class="status-txt" style="padding:20px">実データを取得できませんでした。「予測」モードをご利用ください。</div>`;
+  }
+}
+
+/* ライブの実測値を起点にモデルの形状を当てはめた「補正済みカーブ」を返す */
+function calibratedCurve(att) {
+  const today = new Date();
+  const base = WaitModel.dayCurve(att, today, state.weather);
+  const live = RealTime.get(att);
+  if (live && live.status === "OPERATING" && live.wait != null) {
+    const nowHour = clampHour(today.getHours());
+    const p = WaitModel.predict(att, today, nowHour, state.weather);
+    const scale = p > 0 ? live.wait / p : 1;
+    return {
+      curve: base.map((c) => ({ hour: c.hour, wait: Math.max(0, Math.round((c.wait * scale) / 5) * 5) })),
+      anchorHour: nowHour,
+      calibrated: true,
+    };
+  }
+  return { curve: base, anchorHour: clampHour(today.getHours()), calibrated: false };
+}
+
 /* ---- 詳細モーダル ---- */
 function openModal(att) {
   state.selected = att;
-  const curve = WaitModel.dayCurve(att, state.date, state.weather);
-  const nowWait = WaitModel.predict(att, state.date, state.hour, state.weather);
+  const live = RealTime.get(att);
+
+  let curve, markerHour, nowLabel, nowVal, metaExtra;
+  if (state.mode === "live") {
+    const cal = calibratedCurve(att);
+    curve = cal.curve;
+    markerHour = cal.anchorHour;
+    const operating = live && live.status === "OPERATING" && live.wait != null;
+    nowVal = operating ? live.wait : (live ? RealTime.statusLabel(live.status) : "—");
+    nowLabel = "現在の実待ち時間";
+    metaExtra = cal.calibrated ? "本日の予測（実データで補正）" : "本日の予測";
+  } else {
+    curve = WaitModel.dayCurve(att, state.date, state.weather);
+    markerHour = state.hour;
+    nowVal = WaitModel.predict(att, state.date, state.hour, state.weather);
+    nowLabel = "指定時刻の予測";
+    metaExtra = `${state.date.getMonth() + 1}/${state.date.getDate()}(${fmtDow(state.date)})・${WEATHER_LABEL[state.weather]}`;
+  }
+
   const max = curve.reduce((a, b) => (b.wait > a.wait ? b : a));
-  // 狙い目を「昼間（〜15時）」「夜間（16〜20時）」に分けて算出
   const minIn = (lo, hi) =>
     curve.filter((c) => c.hour >= lo && c.hour <= hi)
          .reduce((a, b) => (b.wait < a.wait ? b : a));
@@ -117,14 +245,15 @@ function openModal(att) {
   const bestNight = minIn(16, 20);
 
   $("mTitle").textContent = att.name;
-  $("mMeta").textContent =
-    `${att.area}・${att.type}　|　${state.date.getMonth() + 1}/${state.date.getDate()}(${fmtDow(state.date)})・${WEATHER_LABEL[state.weather]}`;
-  $("nowWait").textContent = nowWait;
+  $("mMeta").textContent = `${att.area}・${att.type}　|　${metaExtra}`;
+  $("nowLabel").textContent = nowLabel;
+  $("nowWait").textContent = nowVal;
+  $("nowUnit").style.display = (typeof nowVal === "number") ? "" : "none";
   $("maxWait").textContent = max.wait;
   $("bestDay").textContent = `${bestDay.hour}:00 (${bestDay.wait}分)`;
   $("bestNight").textContent = `${bestNight.hour}:00 (${bestNight.wait}分)`;
 
-  drawChart(curve, state.hour);
+  drawChart(curve, markerHour);
   $("modal").classList.add("open");
 }
 

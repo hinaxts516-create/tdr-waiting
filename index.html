@@ -46,6 +46,14 @@
       </div>
     </section>
 
+    <div class="mode-row">
+      <div class="mode-tabs" id="modeTabs">
+        <button data-mode="predict" class="active">📊 予測（モデル）</button>
+        <button data-mode="live">🔴 ライブ（実データ）</button>
+      </div>
+      <div class="mode-status" id="modeStatus"></div>
+    </div>
+
     <div class="model-badge" id="modelBadge">
       <span><span class="dot"></span><b>予測モデル稼働中</b></span>
       <span>学習データ: <b id="mSamples">—</b> 件</span>
@@ -58,8 +66,8 @@
     <div class="grid" id="grid"></div>
 
     <footer class="note">
-      ※ 本サイトは学習用のデモです。待ち時間は実データではなく、合成データで学習したモデルによる予測値です。<br>
-      東京ディズニーリゾート公式とは関係ありません。
+      ※「予測」モードは合成データで学習したモデルによる予測値、「ライブ」モードは実際の待ち時間です。<br>
+      ライブの待ち時間データ提供: <a href="https://themeparks.wiki/" target="_blank" rel="noopener">themeparks.wiki</a>（非公式API）。本サイトは東京ディズニーリゾート公式とは関係ありません。
     </footer>
   </div>
 
@@ -70,7 +78,7 @@
       <h2 id="mTitle"></h2>
       <div class="meta" id="mMeta"></div>
       <div class="now-box">
-        <div class="item"><div class="k">指定時刻の予測</div><div class="v"><span id="nowWait">—</span><small>分</small></div></div>
+        <div class="item"><div class="k" id="nowLabel">指定時刻の予測</div><div class="v"><span id="nowWait">—</span><small id="nowUnit">分</small></div></div>
         <div class="item"><div class="k">本日の最大予測</div><div class="v"><span id="maxWait">—</span><small>分</small></div></div>
         <div class="item"><div class="k">昼間の狙い目<small>（〜15時）</small></div><div class="v" id="bestDay" style="font-size:22px">—</div></div>
         <div class="item"><div class="k">夜間の狙い目<small>（16〜20時）</small></div><div class="v" id="bestNight" style="font-size:22px">—</div></div>
@@ -84,6 +92,7 @@
 
   <script src="data.js"></script>
   <script src="model.js"></script>
+  <script src="realtime.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

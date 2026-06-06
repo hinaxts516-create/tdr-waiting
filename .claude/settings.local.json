@@ -4,7 +4,8 @@
       "Bash(npx --version)",
       "PowerShell($cmds = @\\(\"node\",\"npm\",\"npx\",\"python\",\"py\",\"php\"\\); foreach\\($c in $cmds\\){ $p = Get-Command $c -ErrorAction SilentlyContinue; if\\($p\\){ \"$c -> $\\($p.Source\\)\" } else { \"$c -> \\(not found\\)\" } })",
       "PowerShell(try { & python --version } catch { \"FAILED: $_\" })",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(awk '/Peter Pan.s Flight/{f=1} f{print} /status/{if\\(f\\)c++} c>1{exit}' /tmp/live.json | head -30)"
     ]
   }
 }
