@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ディズニー待ち時間 予測 ✨</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div>
+        <h1><span class="spark">✨</span> ディズニー アトラクション待ち時間 予測</h1>
+        <div class="subtitle">学習済みモデルが日時・天候から待ち時間を予測します（ダミーデータ）</div>
+      </div>
+      <div class="park-tabs" id="parkTabs">
+        <button data-park="TDL" class="active">ランド</button>
+        <button data-park="TDS">シー</button>
+      </div>
+    </header>
+
+    <section class="controls">
+      <div class="field">
+        <label for="dateInput">日付</label>
+        <input type="date" id="dateInput" />
+      </div>
+      <div class="field">
+        <label for="timeInput">時刻 <span class="time-val" id="timeVal">12:00</span></label>
+        <input type="range" id="timeInput" min="9" max="21" step="1" value="12" />
+      </div>
+      <div class="field">
+        <label for="weatherInput">天候</label>
+        <select id="weatherInput">
+          <option value="sunny">晴れ</option>
+          <option value="cloudy">くもり</option>
+          <option value="rain">雨</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="sortInput">並び替え</label>
+        <select id="sortInput">
+          <option value="wait">待ち時間が長い順</option>
+          <option value="waitAsc">待ち時間が短い順</option>
+          <option value="name">名前順</option>
+        </select>
+      </div>
+    </section>
+
+    <div class="model-badge" id="modelBadge">
+      <span><span class="dot"></span><b>予測モデル稼働中</b></span>
+      <span>学習データ: <b id="mSamples">—</b> 件</span>
+      <span>平均誤差(MAE): <b id="mMae">—</b> 分</span>
+      <span>決定係数(R²): <b id="mR2">—</b></span>
+      <span id="mCrowd">混雑指数: <b>—</b></span>
+    </div>
+
+    <div class="section-title" id="sectionTitle">待ち時間予測一覧</div>
+    <div class="grid" id="grid"></div>
+
+    <footer class="note">
+      ※ 本サイトは学習用のデモです。待ち時間は実データではなく、合成データで学習したモデルによる予測値です。<br>
+      東京ディズニーリゾート公式とは関係ありません。
+    </footer>
+  </div>
+
+  <!-- 詳細モーダル -->
+  <div class="modal-backdrop" id="modal">
+    <div class="modal">
+      <button class="modal-close" id="modalClose">×</button>
+      <h2 id="mTitle"></h2>
+      <div class="meta" id="mMeta"></div>
+      <div class="now-box">
+        <div class="item"><div class="k">指定時刻の予測</div><div class="v"><span id="nowWait">—</span><small>分</small></div></div>
+        <div class="item"><div class="k">本日の最大予測</div><div class="v"><span id="maxWait">—</span><small>分</small></div></div>
+        <div class="item"><div class="k">昼間の狙い目<small>（〜15時）</small></div><div class="v" id="bestDay" style="font-size:22px">—</div></div>
+        <div class="item"><div class="k">夜間の狙い目<small>（16〜20時）</small></div><div class="v" id="bestNight" style="font-size:22px">—</div></div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart"></canvas>
+        <div class="legend">青線=1日の予測待ち時間カーブ／<span class="cur">●</span> 現在選択中の時刻</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="model.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --version)",
+      "PowerShell($cmds = @\\(\"node\",\"npm\",\"npx\",\"python\",\"py\",\"php\"\\); foreach\\($c in $cmds\\){ $p = Get-Command $c -ErrorAction SilentlyContinue; if\\($p\\){ \"$c -> $\\($p.Source\\)\" } else { \"$c -> \\(not found\\)\" } })",
+      "PowerShell(try { & python --version } catch { \"FAILED: $_\" })",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

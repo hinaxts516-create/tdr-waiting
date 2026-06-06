@@ -1,0 +1,9 @@
+# OS が作る不要ファイル
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# エディタ
+.vscode/
+*.swp
