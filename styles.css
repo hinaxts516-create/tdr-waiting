@@ -214,6 +214,30 @@ header.top h1 .spark { color: var(--yellow); }
 .lv-high   { background: rgba(217,104,42,.14);  color: var(--orange); }
 .lv-vhigh  { background: rgba(226,59,78,.12);   color: var(--red); }
 
+/* ---- DPA判定 ---- */
+.dpa-chip {
+  display: inline-block;
+  margin-left: 6px;
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.dpa-buy   { background: rgba(15,165,114,.14);  color: var(--green);  border-color: rgba(15,165,114,.35); }
+.dpa-maybe { background: rgba(192,138,0,.16);   color: var(--yellow); border-color: rgba(192,138,0,.35); }
+.dpa-no    { background: rgba(107,119,148,.12); color: var(--muted); }
+.dpa-box {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.dpa-title { font-size: 14px; font-weight: 800; }
+.dpa-detail { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+
 /* ---- 詳細モーダル ---- */
 .modal-backdrop {
   position: fixed; inset: 0;

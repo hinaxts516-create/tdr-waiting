@@ -42,6 +42,25 @@ function fmtDow(date) {
   return "日月火水木金土"[date.getDay()];
 }
 
+/* DPA（プレミアアクセス）を買うべきか判定。
+ * 判定の主要因は待ち時間。価格と合わせ「1分あたりの節約コスト(円/分)」で評価。 */
+function dpaVerdict(att, wait) {
+  if (!att.dpa) return null;        // DPA対象外
+  if (wait == null) return null;    // 待ち時間データなし（休止等）
+  if (wait < 30) return { lv: "dpa-no", label: "不要", ypm: null, reason: "待ちが短く、並んでも十分です" };
+  const ypm = Math.round(att.dpa / wait); // 円/分（小さいほどお得）
+  if (ypm <= 30) return { lv: "dpa-buy", label: "買う価値大", ypm, reason: "時間効率が高く、購入の価値が大きいです" };
+  if (ypm <= 50) return { lv: "dpa-maybe", label: "検討", ypm, reason: "予算と相談。混雑が増すなら購入価値が上がります" };
+  return { lv: "dpa-no", label: "割高", ypm, reason: "今は並んだ方がお得かもしれません" };
+}
+
+/* カード用の小さなDPAチップ */
+function dpaChipHtml(att, wait) {
+  const v = dpaVerdict(att, wait);
+  if (!v) return "";
+  return `<span class="dpa-chip ${v.lv}">DPA ${v.label}</span>`;
+}
+
 /* ---- 初期化 ---- */
 function init() {
   // モデル学習
@@ -166,6 +185,7 @@ function renderPredict() {
       <div class="meta">${att.area}・${att.type}</div>
       <div class="wait"><span class="num">${wait}</span><span class="unit">分</span></div>
       <span class="badge ${lv.cls}">${lv.text}</span>
+      ${dpaChipHtml(att, wait)}
     `;
     card.addEventListener("click", () => openModal(att));
     grid.appendChild(card);
@@ -196,7 +216,7 @@ function renderLive() {
     if (operating) {
       const lv = level(live.wait);
       body = `<div class="wait"><span class="num">${live.wait}</span><span class="unit">分</span></div>
-              <span class="badge ${lv.cls}">${lv.text}</span>`;
+              <span class="badge ${lv.cls}">${lv.text}</span>${dpaChipHtml(att, live.wait)}`;
     } else if (live) {
       card.classList.add("dim");
       body = `<div class="status-txt">${RealTime.statusLabel(live.status)}</div>`;
@@ -275,6 +295,25 @@ function openModal(att) {
   $("maxWait").textContent = max.wait;
   $("bestDay").textContent = `${bestDay.hour}:00 (${bestDay.wait}分)`;
   $("bestNight").textContent = `${bestNight.hour}:00 (${bestNight.wait}分)`;
+
+  // DPA判定（その時の待ち時間 nowVal を使用）
+  const dpaBox = $("dpaBox");
+  const dpaWait = (typeof nowVal === "number") ? nowVal : null;
+  const v = dpaVerdict(att, dpaWait);
+  if (v) {
+    dpaBox.style.display = "";
+    dpaBox.innerHTML =
+      `<div class="dpa-title">🎫 DPA判定: <span class="dpa-chip ${v.lv}">${v.label}</span></div>` +
+      `<div class="dpa-detail">価格 約¥${att.dpa.toLocaleString()}　／　想定待ち ${dpaWait}分` +
+      `${v.ypm != null ? `　／　約${v.ypm}円/分` : ""}<br>${v.reason}</div>`;
+  } else if (att.dpa) {
+    dpaBox.style.display = "";
+    dpaBox.innerHTML =
+      `<div class="dpa-title">🎫 DPA対象</div>` +
+      `<div class="dpa-detail">待ち時間データがないため判定できません（休止中など）。価格 約¥${att.dpa.toLocaleString()}</div>`;
+  } else {
+    dpaBox.style.display = "none";
+  }
 
   drawChart(curve, markerHour);
   $("modal").classList.add("open");

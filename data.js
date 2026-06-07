@@ -10,13 +10,15 @@
 
 const PARK_HOURS = { open: 9, close: 21 }; // パーク全体の運営時間（簡略化）
 
-/* infoId: tokyodisneyresort.info の attr_id（実データ取得・履歴のキー） */
+/* infoId: tokyodisneyresort.info の attr_id（実データ取得・履歴のキー）
+ * dpa   : ディズニー・プレミアアクセスの目安価格(円)。設定があるアトラクションが対象。
+ *         価格は変動するため概算（DPA判定の主要因は待ち時間）。 */
 const ATTRACTIONS = {
   TDL: [
-    { id: "tdl-beauty",   name: "美女と野獣“魔法のものがたり”", area: "ファンタジーランド", type: "ライド",       popularity: 0.98, capacity: 0.45, infoId: "100" },
-    { id: "tdl-baymax",   name: "ベイマックスのハッピーライド",         area: "トゥモローランド",   type: "ライド",       popularity: 0.90, capacity: 0.55, infoId: "414" },
+    { id: "tdl-beauty",   name: "美女と野獣“魔法のものがたり”", area: "ファンタジーランド", type: "ライド",       popularity: 0.98, capacity: 0.45, infoId: "100", dpa: 2500 },
+    { id: "tdl-baymax",   name: "ベイマックスのハッピーライド",         area: "トゥモローランド",   type: "ライド",       popularity: 0.90, capacity: 0.55, infoId: "414", dpa: 1500 },
     { id: "tdl-pooh",     name: "プーさんのハニーハント",               area: "ファンタジーランド", type: "ライド",       popularity: 0.85, capacity: 0.60, infoId: "123" },
-    { id: "tdl-splash",   name: "スプラッシュ・マウンテン",             area: "クリッターカントリー", type: "絶叫",       popularity: 0.88, capacity: 0.70, infoId: "112" },
+    { id: "tdl-splash",   name: "スプラッシュ・マウンテン",             area: "クリッターカントリー", type: "絶叫",       popularity: 0.88, capacity: 0.70, infoId: "112", dpa: 2000 },
     { id: "tdl-bigthunder", name: "ビッグサンダー・マウンテン",         area: "ウエスタンランド",   type: "絶叫",         popularity: 0.82, capacity: 0.75, infoId: "110" },
     { id: "tdl-space",    name: "スペース・マウンテン",                 area: "トゥモローランド",   type: "絶叫",         popularity: 0.80, capacity: 0.72, infoId: "133" },
     { id: "tdl-monsters", name: "モンスターズ・インク“ライド&ゴーシーク!”", area: "トゥモローランド", type: "ライド", popularity: 0.83, capacity: 0.58, infoId: "163" },
@@ -27,14 +29,15 @@ const ATTRACTIONS = {
     { id: "tdl-star",     name: "スター・ツアーズ",                     area: "トゥモローランド",   type: "シミュレーター", popularity: 0.58, capacity: 0.74, infoId: "132" },
   ],
   TDS: [
-    { id: "tds-soaring",  name: "ソアリン:ファンタスティック・フライト", area: "メディテレーニアンハーバー", type: "ライド", popularity: 0.99, capacity: 0.62, infoId: "405" },
-    { id: "tds-frozen",   name: "アナとエルサのフローズンジャーニー",   area: "ファンタジースプリングス", type: "ライド", popularity: 0.99, capacity: 0.40, infoId: "465" },
-    { id: "tds-toystory", name: "トイ・ストーリー・マニア!",           area: "アメリカンウォーターフロント", type: "ライド", popularity: 0.93, capacity: 0.55, infoId: "173" },
-    { id: "tds-tot",      name: "タワー・オブ・テラー",                 area: "アメリカンウォーターフロント", type: "絶叫", popularity: 0.88, capacity: 0.70, infoId: "144" },
-    { id: "tds-center",   name: "センター・オブ・ジ・アース",           area: "ミステリアスアイランド", type: "絶叫",     popularity: 0.90, capacity: 0.68, infoId: "145" },
+    { id: "tds-soaring",  name: "ソアリン:ファンタスティック・フライト", area: "メディテレーニアンハーバー", type: "ライド", popularity: 0.99, capacity: 0.62, infoId: "405", dpa: 2500 },
+    { id: "tds-frozen",   name: "アナとエルサのフローズンジャーニー",   area: "ファンタジースプリングス", type: "ライド", popularity: 0.99, capacity: 0.40, infoId: "465", dpa: 2500 },
+    { id: "tds-rapunzel", name: "ラプンツェルのランタンフェスティバル", area: "ファンタジースプリングス", type: "ライド", popularity: 0.96, capacity: 0.52, infoId: "464", dpa: 2000 },
+    { id: "tds-toystory", name: "トイ・ストーリー・マニア!",           area: "アメリカンウォーターフロント", type: "ライド", popularity: 0.93, capacity: 0.55, infoId: "173", dpa: 2000 },
+    { id: "tds-tot",      name: "タワー・オブ・テラー",                 area: "アメリカンウォーターフロント", type: "絶叫", popularity: 0.88, capacity: 0.70, infoId: "144", dpa: 2000 },
+    { id: "tds-center",   name: "センター・オブ・ジ・アース",           area: "ミステリアスアイランド", type: "絶叫",     popularity: 0.90, capacity: 0.68, infoId: "145", dpa: 2000 },
     { id: "tds-indy",     name: "インディ・ジョーンズ“・アドベンチャー”", area: "ロストリバーデルタ", type: "ライド", popularity: 0.84, capacity: 0.72, infoId: "150" },
     { id: "tds-raging",   name: "レイジングスピリッツ",                 area: "ロストリバーデルタ", type: "絶叫",         popularity: 0.72, capacity: 0.66, infoId: "152" },
-    { id: "tds-peter",    name: "ピーターパンのネバーランドアドベンチャー", area: "ファンタジースプリングス", type: "ライド", popularity: 0.95, capacity: 0.50, infoId: "466" },
+    { id: "tds-peter",    name: "ピーターパンのネバーランドアドベンチャー", area: "ファンタジースプリングス", type: "ライド", popularity: 0.95, capacity: 0.50, infoId: "466", dpa: 2000 },
     { id: "tds-nimo",     name: "ニモ&フレンズ・シーライダー",         area: "ポートディスカバリー", type: "シミュレーター", popularity: 0.66, capacity: 0.80, infoId: "398" },
     { id: "tds-sindbad",  name: "シンドバッド・ストーリーブック・ヴォヤッジ", area: "アラビアンコースト", type: "ライド", popularity: 0.40, capacity: 0.95, infoId: "159" },
     { id: "tds-magic",    name: "マジックランプシアター",               area: "アラビアンコースト", type: "シアター",     popularity: 0.45, capacity: 0.88, infoId: "160" },
