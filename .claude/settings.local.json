@@ -5,7 +5,10 @@
       "PowerShell($cmds = @\\(\"node\",\"npm\",\"npx\",\"python\",\"py\",\"php\"\\); foreach\\($c in $cmds\\){ $p = Get-Command $c -ErrorAction SilentlyContinue; if\\($p\\){ \"$c -> $\\($p.Source\\)\" } else { \"$c -> \\(not found\\)\" } })",
       "PowerShell(try { & python --version } catch { \"FAILED: $_\" })",
       "mcp__Claude_Preview__preview_start",
-      "Bash(awk '/Peter Pan.s Flight/{f=1} f{print} /status/{if\\(f\\)c++} c>1{exit}' /tmp/live.json | head -30)"
+      "Bash(awk '/Peter Pan.s Flight/{f=1} f{print} /status/{if\\(f\\)c++} c>1{exit}' /tmp/live.json | head -30)",
+      "Bash(curl -sL \"https://docs.google.com/spreadsheets/d/1GXWKZgxULicjcmdhXWiWkPIRrT0f7iF-GfcaCqHxOHI/export?format=csv\" -o sheet_dump.csv)",
+      "Bash(echo \"exit=$?\")",
+      "PowerShell(winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements --silent --disable-interactivity 2>&1)"
     ]
   }
 }

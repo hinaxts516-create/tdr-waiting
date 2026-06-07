@@ -6,6 +6,12 @@
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", "serve.ps1", "8080"],
       "port": 8080
+    },
+    {
+      "name": "react-dev",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", "serve-react.ps1"],
+      "port": 5174
     }
   ]
 }
