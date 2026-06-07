@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>過去の待ち時間データ｜TDR待ち時間</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div>
+        <h1><span class="spark">📊</span> 過去の待ち時間データ</h1>
+        <div class="subtitle">自動収集した実際の待ち時間の記録（日別の一覧）</div>
+      </div>
+      <a class="nav-link" href="index.html">← 予測トップへ</a>
+    </header>
+
+    <section class="controls">
+      <div class="field">
+        <label for="dateSelect">日付</label>
+        <select id="dateSelect"></select>
+      </div>
+      <div class="field">
+        <label>パーク</label>
+        <div class="park-tabs inline" id="parkTabs">
+          <button data-park="TDL" class="active">ランド</button>
+          <button data-park="TDS">シー</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="sortSelect">並び替え</label>
+        <select id="sortSelect">
+          <option value="avg">平均が長い順</option>
+          <option value="max">最大が長い順</option>
+          <option value="name">名前順</option>
+        </select>
+      </div>
+    </section>
+
+    <div class="model-badge" id="info">読み込み中…</div>
+
+    <div class="section-title" id="sectionTitle">日別の記録</div>
+    <div id="tableWrap"></div>
+
+    <footer class="note">
+      ※ 待ち時間は 10 分おきに自動収集した実データ（スタンバイ）です。時刻は日本時間(JST)。<br />
+      データ提供: <a href="https://themeparks.wiki/" target="_blank" rel="noopener">themeparks.wiki</a>（非公式API）。本サイトは東京ディズニーリゾート公式とは関係ありません。
+    </footer>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

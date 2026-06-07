@@ -255,3 +255,48 @@ canvas { width: 100%; height: 240px; display: block; }
 
 footer.note { text-align: center; color: var(--muted); font-size: 11px; margin-top: 30px; line-height: 1.6; }
 footer.note a { color: var(--accent); }
+
+/* ---- ナビリンク / 過去データページ ---- */
+.nav-link {
+  margin-left: auto;
+  align-self: center;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 16px;
+  box-shadow: var(--shadow);
+}
+.nav-link:hover { border-color: var(--accent); }
+.park-tabs.inline { margin-left: 0; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.header-right .park-tabs { margin-left: 0; }
+.header-right .nav-link { margin-left: 0; }
+
+.hist-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  font-size: 14px;
+}
+.hist-table th, .hist-table td {
+  padding: 11px 14px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+.hist-table th { color: var(--muted); font-size: 12px; background: var(--bg2); }
+.hist-table th:first-child, .hist-table td.nm { text-align: left; }
+.hist-table td.nm { font-weight: 700; }
+.hist-table td.num { font-weight: 800; font-variant-numeric: tabular-nums; }
+.hist-table td small { color: var(--muted); font-weight: 600; margin-left: 1px; }
+.hist-table .muted { color: var(--muted); font-weight: 600; font-size: 12px; }
+.hist-table tr:last-child td { border-bottom: 0; }
+.hist-table tr.nodata td { color: var(--muted); font-weight: 600; }
+.hist-table tbody tr:hover { background: var(--bg2); }
