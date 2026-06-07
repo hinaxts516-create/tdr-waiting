@@ -4,7 +4,7 @@
 
 const state = {
   park: "TDL",
-  date: new Date(2026, 6 - 1, 6), // 既定日（今日）。後で input から上書き
+  date: new Date(), // 常に今日を初期値にする
   hour: 12,
   sort: "wait",
   mode: "predict", // "predict" | "live"
