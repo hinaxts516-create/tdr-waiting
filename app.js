@@ -11,8 +11,17 @@ const state = {
   selected: null,
 };
 
-// 天候は選択させず、日付の気候から自動予測する（predictWeather は model.js）
+// 天候は選択させず自動決定する。
+//  直近数日は実天気予報(Forecast/Open-Meteo)、それ以降は平年気候(predictWeather)。
 const WEATHER_EMOJI = { sunny: "☀️ 晴れ", cloudy: "☁️ くもり", rain: "🌧️ 雨" };
+const SOURCE_LABEL = { forecast: "予報", climatology: "平年" };
+
+/* 指定日の天候を決定: 実予報があれば優先、無ければ平年気候 */
+function resolveWeather(date) {
+  const f = Forecast.get(date);
+  if (f) return { weather: f, source: "forecast" };
+  return { weather: predictWeather(date), source: "climatology" };
+}
 
 /* 時刻をパーク運営時間内にクランプ */
 function clampHour(h) {
@@ -84,7 +93,14 @@ function init() {
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
   render();
-  loadLive(); // 起動時にバックグラウンドで実データ取得
+  loadLive();     // 起動時にバックグラウンドで実データ取得
+  loadForecast(); // 直近数日の実天気予報を取得
+}
+
+/* ---- 天気予報の取得 ---- */
+async function loadForecast() {
+  await Forecast.fetchAll();
+  render(); // 取得後に予測天候表示・予測値を更新
 }
 
 /* ---- 実データの取得と状態表示 ---- */
@@ -116,15 +132,15 @@ function setModeStatus(stateStr) {
 
 /* ---- 一覧描画 ---- */
 function render() {
-  // 予測天候の表示を更新（自動）
-  const w = predictWeather(state.date);
-  $("weatherPred").textContent = WEATHER_EMOJI[w];
+  // 予測天候の表示を更新（直近は実予報、以降は平年）
+  const { weather: w, source } = resolveWeather(state.date);
+  $("weatherPred").textContent = `${WEATHER_EMOJI[w]}（${SOURCE_LABEL[source]}）`;
   state.mode === "live" ? renderLive() : renderPredict();
 }
 
 /* 予測モード */
 function renderPredict() {
-  const weather = predictWeather(state.date);
+  const weather = resolveWeather(state.date).weather;
   const list = ATTRACTIONS[state.park].map((att) => ({
     att,
     wait: WaitModel.predict(att, state.date, state.hour, weather),
@@ -205,7 +221,7 @@ function renderLive() {
 /* ライブの実測値を起点にモデルの形状を当てはめた「補正済みカーブ」を返す */
 function calibratedCurve(att) {
   const today = new Date();
-  const weather = predictWeather(today);
+  const weather = resolveWeather(today).weather;
   const base = WaitModel.dayCurve(att, today, weather);
   const live = RealTime.get(att);
   if (live && live.status === "OPERATING" && live.wait != null) {
@@ -236,7 +252,7 @@ function openModal(att) {
     nowLabel = "現在の実待ち時間";
     metaExtra = cal.calibrated ? "本日の予測（実データで補正）" : "本日の予測";
   } else {
-    const weather = predictWeather(state.date);
+    const weather = resolveWeather(state.date).weather;
     curve = WaitModel.dayCurve(att, state.date, weather);
     markerHour = state.hour;
     nowVal = WaitModel.predict(att, state.date, state.hour, weather);
