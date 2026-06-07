@@ -55,6 +55,40 @@ const MONTH_FACTOR = [
 const WEATHER_FACTOR = { sunny: 1.0, cloudy: 0.95, rain: 0.75 };
 const WEATHER_LABEL  = { sunny: "晴れ", cloudy: "くもり", rain: "雨" };
 
+// 月別の天候出現確率 [雨, くもり]（残りが晴れ）。東京の気候を簡易反映（梅雨・秋雨/台風など）
+const WEATHER_PROB = [
+  [0.12, 0.25], // 1月
+  [0.15, 0.28], // 2月
+  [0.28, 0.32], // 3月
+  [0.30, 0.33], // 4月
+  [0.32, 0.33], // 5月
+  [0.50, 0.30], // 6月（梅雨）
+  [0.42, 0.30], // 7月
+  [0.38, 0.30], // 8月
+  [0.45, 0.30], // 9月（秋雨・台風）
+  [0.33, 0.32], // 10月
+  [0.20, 0.28], // 11月
+  [0.12, 0.25], // 12月
+];
+
+/* 日付から決定論的に [0,1) の値を作る（同じ日付なら毎回同じ天候になる） */
+function dateHash01(date) {
+  let h = (date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate()) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
+  h = Math.imul(h ^ (h >>> 12), 0x297a2d39);
+  h ^= h >>> 15;
+  return (h >>> 0) / 4294967296;
+}
+
+/* 天候を予測する（ユーザー選択ではなく、日付の気候から自動決定） */
+function predictWeather(date) {
+  const [pRain, pCloudy] = WEATHER_PROB[date.getMonth()];
+  const r = dateHash01(date);
+  if (r < pRain) return "rain";
+  if (r < pRain + pCloudy) return "cloudy";
+  return "sunny";
+}
+
 /* 指定日の特別日係数を返す */
 function specialDayFactor(date) {
   const key = String(date.getMonth() + 1).padStart(2, "0") + "-" +

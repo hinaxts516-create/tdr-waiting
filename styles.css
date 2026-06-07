@@ -101,6 +101,14 @@ header.top h1 .spark { color: var(--yellow); }
 }
 .field input[type="range"] { padding: 0; accent-color: var(--accent); }
 .time-val { color: var(--accent); font-weight: 700; }
+.weather-pred {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
 
 /* ---- モード切替（予測 / ライブ） ---- */
 .mode-row {

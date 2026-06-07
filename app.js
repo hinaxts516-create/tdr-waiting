@@ -6,11 +6,13 @@ const state = {
   park: "TDL",
   date: new Date(2026, 6 - 1, 6), // 既定日（今日）。後で input から上書き
   hour: 12,
-  weather: "sunny",
   sort: "wait",
   mode: "predict", // "predict" | "live"
   selected: null,
 };
+
+// 天候は選択させず、日付の気候から自動予測する（predictWeather は model.js）
+const WEATHER_EMOJI = { sunny: "☀️ 晴れ", cloudy: "☁️ くもり", rain: "🌧️ 雨" };
 
 /* 時刻をパーク運営時間内にクランプ */
 function clampHour(h) {
@@ -65,7 +67,6 @@ function init() {
     render();
   });
 
-  $("weatherInput").addEventListener("change", (e) => { state.weather = e.target.value; render(); });
   $("sortInput").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
 
   $("modeTabs").addEventListener("click", (e) => {
@@ -115,22 +116,26 @@ function setModeStatus(stateStr) {
 
 /* ---- 一覧描画 ---- */
 function render() {
+  // 予測天候の表示を更新（自動）
+  const w = predictWeather(state.date);
+  $("weatherPred").textContent = WEATHER_EMOJI[w];
   state.mode === "live" ? renderLive() : renderPredict();
 }
 
 /* 予測モード */
 function renderPredict() {
+  const weather = predictWeather(state.date);
   const list = ATTRACTIONS[state.park].map((att) => ({
     att,
-    wait: WaitModel.predict(att, state.date, state.hour, state.weather),
+    wait: WaitModel.predict(att, state.date, state.hour, weather),
   }));
 
   if (state.sort === "wait") list.sort((a, b) => b.wait - a.wait);
   else if (state.sort === "waitAsc") list.sort((a, b) => a.wait - b.wait);
   else list.sort((a, b) => a.att.name.localeCompare(b.att.name, "ja"));
 
-  const crowd = computeCrowdIndex(state.date, state.weather);
-  $("mCrowd").innerHTML = `混雑指数: <b>${crowd.toFixed(2)}</b>（${WEATHER_LABEL[state.weather]}・${fmtDow(state.date)}曜）`;
+  const crowd = computeCrowdIndex(state.date, weather);
+  $("mCrowd").innerHTML = `混雑指数: <b>${crowd.toFixed(2)}</b>（${WEATHER_LABEL[weather]}・${fmtDow(state.date)}曜）`;
   $("sectionTitle").textContent =
     `${PARK_LABELS[state.park]} ／ ${state.date.getMonth() + 1}月${state.date.getDate()}日(${fmtDow(state.date)}) ${String(state.hour).padStart(2, "0")}:00 の予測`;
 
@@ -200,11 +205,12 @@ function renderLive() {
 /* ライブの実測値を起点にモデルの形状を当てはめた「補正済みカーブ」を返す */
 function calibratedCurve(att) {
   const today = new Date();
-  const base = WaitModel.dayCurve(att, today, state.weather);
+  const weather = predictWeather(today);
+  const base = WaitModel.dayCurve(att, today, weather);
   const live = RealTime.get(att);
   if (live && live.status === "OPERATING" && live.wait != null) {
     const nowHour = clampHour(today.getHours());
-    const p = WaitModel.predict(att, today, nowHour, state.weather);
+    const p = WaitModel.predict(att, today, nowHour, weather);
     const scale = p > 0 ? live.wait / p : 1;
     return {
       curve: base.map((c) => ({ hour: c.hour, wait: Math.max(0, Math.round((c.wait * scale) / 5) * 5) })),
@@ -230,11 +236,12 @@ function openModal(att) {
     nowLabel = "現在の実待ち時間";
     metaExtra = cal.calibrated ? "本日の予測（実データで補正）" : "本日の予測";
   } else {
-    curve = WaitModel.dayCurve(att, state.date, state.weather);
+    const weather = predictWeather(state.date);
+    curve = WaitModel.dayCurve(att, state.date, weather);
     markerHour = state.hour;
-    nowVal = WaitModel.predict(att, state.date, state.hour, state.weather);
+    nowVal = WaitModel.predict(att, state.date, state.hour, weather);
     nowLabel = "指定時刻の予測";
-    metaExtra = `${state.date.getMonth() + 1}/${state.date.getDate()}(${fmtDow(state.date)})・${WEATHER_LABEL[state.weather]}`;
+    metaExtra = `${state.date.getMonth() + 1}/${state.date.getDate()}(${fmtDow(state.date)})・${WEATHER_LABEL[weather]}`;
   }
 
   const max = curve.reduce((a, b) => (b.wait > a.wait ? b : a));
