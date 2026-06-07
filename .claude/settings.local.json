@@ -10,7 +10,11 @@
       "Bash(echo \"exit=$?\")",
       "PowerShell(winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements --silent --disable-interactivity 2>&1)",
       "Bash(curl -s http://localhost:8080/)",
-      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:8080/)"
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:8080/)",
+      "Bash(curl -s \"https://api.open-meteo.com/v1/forecast?latitude=35.6329&longitude=139.8804&daily=weather_code,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=4\" -D -)",
+      "Bash(curl -s \"https://api.open-meteo.com/v1/forecast?latitude=35.6329&longitude=139.8804&daily=weather_code,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=4\")",
+      "Bash(curl -s -I \"https://api.open-meteo.com/v1/forecast?latitude=35.6329&longitude=139.8804&daily=weather_code&timezone=Asia%2FTokyo&forecast_days=4\")",
+      "Bash(curl -s -I -H \"Origin: https://tdr-wait-time.com\" \"https://api.open-meteo.com/v1/forecast?latitude=35.6329&longitude=139.8804&daily=weather_code&timezone=Asia%2FTokyo&forecast_days=4\")"
     ]
   }
 }
