@@ -4,16 +4,8 @@
 
 const $ = (id) => document.getElementById(id);
 
-/* apiId -> アトラクション情報（両パーク横断） */
-const API_MAP = {};
-for (const park of ["TDL", "TDS"]) {
-  for (const a of ATTRACTIONS[park]) {
-    if (a.apiId) API_MAP[a.apiId] = { ...a, park };
-  }
-}
-
 const state = { park: "TDL", date: null, sort: "avg" };
-let allRows = [];     // {tsMs, dateKey, hour, park, apiId, status, wait}
+let allRows = [];     // {tsMs, dateKey, hour, park, infoId, status, wait}
 let byDate = {};      // dateKey -> rows[]
 
 /* 直近 n か月分のファイル名 (YYYY-MM) */
@@ -33,15 +25,15 @@ function parseCsv(text) {
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
-    const [ts, park, apiId, status, wait] = line.split(",");
-    if (!ts || !apiId) continue;
+    const [ts, park, infoId, status, wait] = line.split(",");
+    if (!ts || !infoId) continue;
     const tsMs = Date.parse(ts);
     if (isNaN(tsMs)) continue;
     const jst = new Date(tsMs + 9 * 3600 * 1000); // UTC→JST
     const dateKey =
       `${jst.getUTCFullYear()}-${String(jst.getUTCMonth() + 1).padStart(2, "0")}-${String(jst.getUTCDate()).padStart(2, "0")}`;
     const w = (wait === undefined || wait === "") ? null : Number(wait);
-    allRows.push({ tsMs, dateKey, hour: jst.getUTCHours(), park, apiId, status, wait: w });
+    allRows.push({ tsMs, dateKey, hour: jst.getUTCHours(), park, infoId, status, wait: w });
   }
 }
 
@@ -49,7 +41,7 @@ async function loadAll() {
   const months = recentMonths(6);
   const texts = await Promise.all(
     months.map((ym) =>
-      fetch(`data/history-${ym}.csv`, { cache: "no-store" })
+      fetch(`data/waits-${ym}.csv`, { cache: "no-store" })
         .then((r) => (r.ok ? r.text() : ""))
         .catch(() => "")
     )
@@ -99,9 +91,9 @@ function render() {
   // apiId ごとに集計
   const agg = {};
   for (const r of dayRows) {
-    const a = (agg[r.apiId] ||= { count: 0, waits: [], peak: null });
+    const a = (agg[r.infoId] ||= { count: 0, waits: [], peak: null });
     a.count++;
-    if (r.status === "OPERATING" && r.wait != null && !isNaN(r.wait)) {
+    if (r.wait != null && !isNaN(r.wait)) {
       a.waits.push(r.wait);
       if (!a.peak || r.wait > a.peak.wait) a.peak = { wait: r.wait, hour: r.hour };
     }
@@ -109,9 +101,9 @@ function render() {
 
   // マスターのアトラクション順に行を作る（実データ対象のみ）
   const rows = ATTRACTIONS[state.park]
-    .filter((att) => att.apiId)
+    .filter((att) => att.infoId)
     .map((att) => {
-      const a = agg[att.apiId];
+      const a = agg[att.infoId];
       if (!a || a.waits.length === 0) {
         return { att, hasData: !!a, avg: null, max: null, min: null, peakHour: null, n: a ? a.count : 0 };
       }
@@ -134,7 +126,7 @@ function render() {
   else rows.sort((a, b) => a.att.name.localeCompare(b.att.name, "ja"));
 
   // 情報バッジ
-  const opCount = dayRows.filter((r) => r.status === "OPERATING" && r.wait != null).length;
+  const opCount = dayRows.filter((r) => r.wait != null).length;
   $("info").innerHTML =
     `<span><b>${fmtDateLabel(state.date)}</b> の記録</span>` +
     `<span>収集回数(のべ): <b>${dayRows.length.toLocaleString()}</b></span>` +

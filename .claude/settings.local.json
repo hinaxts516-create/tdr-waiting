@@ -14,7 +14,17 @@
       "Bash(curl -s \"https://api.open-meteo.com/v1/forecast?latitude=35.6329&longitude=139.8804&daily=weather_code,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=4\" -D -)",
       "Bash(curl -s \"https://api.open-meteo.com/v1/forecast?latitude=35.6329&longitude=139.8804&daily=weather_code,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=4\")",
       "Bash(curl -s -I \"https://api.open-meteo.com/v1/forecast?latitude=35.6329&longitude=139.8804&daily=weather_code&timezone=Asia%2FTokyo&forecast_days=4\")",
-      "Bash(curl -s -I -H \"Origin: https://tdr-wait-time.com\" \"https://api.open-meteo.com/v1/forecast?latitude=35.6329&longitude=139.8804&daily=weather_code&timezone=Asia%2FTokyo&forecast_days=4\")"
+      "Bash(curl -s -I -H \"Origin: https://tdr-wait-time.com\" \"https://api.open-meteo.com/v1/forecast?latitude=35.6329&longitude=139.8804&daily=weather_code&timezone=Asia%2FTokyo&forecast_days=4\")",
+      "Bash(curl -s -I -H \"Origin: https://tdr-wait-time.com\" \"https://queue-times.com/parks/275/queue_times.json\")",
+      "Bash(curl -s \"https://queue-times.com/parks/275/queue_times.json\")",
+      "WebSearch",
+      "WebFetch(domain:scrapbox.io)",
+      "WebFetch(domain:qiita.com)",
+      "Bash(curl -s -o /tmp/tdl_official.html -w \"HTTP %{http_code}, bytes %{size_download}\\\\n\" -A \"Mozilla/5.0 \\(iPhone; CPU iPhone OS 17_0 like Mac OS X\\) AppleWebKit/605.1.15\" \"https://www.tokyodisneyresort.jp/tdl/realtime/attraction/\")",
+      "Bash(grep -oE '\\(https?:\\)?//[^\"'\\\\''> ]*\\(\\\\.json|/api/|realtime[^\"'\\\\''> ]*\\)' /tmp/tdl_official.html)",
+      "Bash(curl -sS -L --max-time 20 -o /tmp/o.html -w \"HTTP %{http_code} bytes %{size_download}\\\\n\" -A \"Mozilla/5.0\" \"https://www.tokyodisneyresort.jp/\")",
+      "Bash(curl -sS -L --max-time 20 -o /tmp/tdl.html -w \"HTTP %{http_code} bytes %{size_download}\\\\n\" -A \"Mozilla/5.0 \\(iPhone; CPU iPhone OS 17_0 like Mac OS X\\) AppleWebKit/605.1.15 Mobile\" \"https://www.tokyodisneyresort.jp/tdl/realtime/attraction/\")",
+      "Bash(curl -sS -L --max-time 20 -A \"Mozilla/5.0\" \"https://tokyodisneyresort.info/realtime.php?park=land&order=name\" -o /tmp/info.html)"
     ]
   }
 }

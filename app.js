@@ -123,7 +123,7 @@ function setModeStatus(stateStr) {
     const t = RealTime.updatedAt;
     const hh = String(t.getHours()).padStart(2, "0");
     const mm = String(t.getMinutes()).padStart(2, "0");
-    el.innerHTML = `<span class="live-dot"></span>LIVE ・ 最終更新 ${hh}:${mm} ・ 提供: themeparks.wiki（非公式）`;
+    el.innerHTML = `<span class="live-dot"></span>LIVE ・ 最終更新 ${hh}:${mm} ・ 提供: ${RealTime.source}`;
   } else {
     el.className = "mode-status err";
     el.textContent = "⚠ 実データの取得に失敗しました（予測値で代替表示）";
@@ -179,7 +179,7 @@ function renderLive() {
   // 並び替え用のソートキー: 運営中=待ち時間, それ以外=-1(末尾)
   const rows = ATTRACTIONS[state.park].map((att) => {
     const live = RealTime.get(att);
-    const operating = live && live.status === "OPERATING" && live.wait != null;
+    const operating = !!(live && live.wait != null);
     return { att, live, operating, sortVal: operating ? live.wait : -1 };
   });
   if (state.sort === "wait") rows.sort((a, b) => b.sortVal - a.sortVal);
@@ -224,7 +224,7 @@ function calibratedCurve(att) {
   const weather = resolveWeather(today).weather;
   const base = WaitModel.dayCurve(att, today, weather);
   const live = RealTime.get(att);
-  if (live && live.status === "OPERATING" && live.wait != null) {
+  if (live && live.wait != null) {
     const nowHour = clampHour(today.getHours());
     const p = WaitModel.predict(att, today, nowHour, weather);
     const scale = p > 0 ? live.wait / p : 1;
@@ -247,7 +247,7 @@ function openModal(att) {
     const cal = calibratedCurve(att);
     curve = cal.curve;
     markerHour = cal.anchorHour;
-    const operating = live && live.status === "OPERATING" && live.wait != null;
+    const operating = live && live.wait != null;
     nowVal = operating ? live.wait : (live ? RealTime.statusLabel(live.status) : "—");
     nowLabel = "現在の実待ち時間";
     metaExtra = cal.calibrated ? "本日の予測（実データで補正）" : "本日の予測";

@@ -27,7 +27,7 @@ jobs:
           node-version: "20"
 
       - name: Collect live wait times
-        run: node scripts/collect.mjs
+        run: node scripts/collect-info.mjs
 
       - name: Commit & push if changed
         run: |

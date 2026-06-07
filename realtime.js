@@ -1,52 +1,28 @@
 /* =========================================================================
- * realtime.js — themeparks.wiki API から実待ち時間を取得（非公式API）
- *
- *  エンドポイント:
- *    https://api.themeparks.wiki/v1/entity/{parkId}/live
- *  ※ CORS は "*" 許可済み。サーバー不要でブラウザから直接取得できる。
- *  ※ 非公式APIのため将来仕様変更の可能性あり。取得失敗時は予測へフォールバック。
+ * realtime.js — 最新の待ち時間スナップショット(data/live-latest.json)を読む
+ *   このJSONは GitHub Actions が tokyodisneyresort.info から取得・生成する。
+ *   （公式は公開APIが無く直接取得不可のため、サーバー側で収集して静的配信）
+ *   アトラクションは infoId で対応付ける。
  * ========================================================================= */
 
 const RealTime = {
-  byApiId: {},      // apiId -> { wait:Number|null, status:String, lastUpdated:String }
-  updatedAt: null,  // 取得時刻(Date)
+  byId: {},          // infoId -> { wait, status, name, park }
+  updatedAt: null,   // スナップショットの生成時刻(Date)
   ok: false,
   error: null,
+  source: "tokyodisneyresort.info",
 
-  STATUS_LABEL: {
-    OPERATING: "運営中",
-    CLOSED: "休止中",
-    DOWN: "一時中断",
-    REFURBISHMENT: "リハブ中",
-  },
-
-  /* 両パークのライブデータを取得してマップ化 */
   async fetchAll() {
-    this.byApiId = {};
+    this.byId = {};
     this.ok = false;
     this.error = null;
     try {
-      const parks = Object.values(PARK_ENTITY);
-      const results = await Promise.all(
-        parks.map((pid) =>
-          fetch(`https://api.themeparks.wiki/v1/entity/${pid}/live`).then((r) => {
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            return r.json();
-          })
-        )
-      );
-      for (const data of results) {
-        for (const e of data.liveData || []) {
-          if (e.entityType !== "ATTRACTION") continue;
-          const wait = e.queue && e.queue.STANDBY ? (e.queue.STANDBY.waitTime ?? null) : null;
-          this.byApiId[e.id] = {
-            wait,
-            status: e.status || "CLOSED",
-            lastUpdated: e.lastUpdated || null,
-          };
-        }
-      }
-      this.updatedAt = new Date();
+      const res = await fetch(`data/live-latest.json?t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      this.byId = data.byId || {};
+      this.updatedAt = data.updatedAt ? new Date(data.updatedAt) : null;
+      this.source = data.source || this.source;
       this.ok = true;
     } catch (err) {
       this.error = err.message || String(err);
@@ -55,13 +31,14 @@ const RealTime = {
     return this.ok;
   },
 
-  /* アトラクション(マスター)に対応する実データを返す。無ければ null */
+  /* アトラクションに対応する実データ。{wait, status} または null */
   get(att) {
-    if (!att || !att.apiId) return null;
-    return this.byApiId[att.apiId] || null;
+    if (!att || !att.infoId) return null;
+    return this.byId[att.infoId] || null;
   },
 
+  /* status は既に日本語（運営中/案内終了/休止 など）なのでそのまま返す */
   statusLabel(status) {
-    return this.STATUS_LABEL[status] || status || "不明";
+    return status || "不明";
   },
 };
