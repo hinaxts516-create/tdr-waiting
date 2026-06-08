@@ -24,7 +24,6 @@
       "Bash(grep -oE '\\(https?:\\)?//[^\"'\\\\''> ]*\\(\\\\.json|/api/|realtime[^\"'\\\\''> ]*\\)' /tmp/tdl_official.html)",
       "Bash(curl -sS -L --max-time 20 -o /tmp/o.html -w \"HTTP %{http_code} bytes %{size_download}\\\\n\" -A \"Mozilla/5.0\" \"https://www.tokyodisneyresort.jp/\")",
       "Bash(curl -sS -L --max-time 20 -o /tmp/tdl.html -w \"HTTP %{http_code} bytes %{size_download}\\\\n\" -A \"Mozilla/5.0 \\(iPhone; CPU iPhone OS 17_0 like Mac OS X\\) AppleWebKit/605.1.15 Mobile\" \"https://www.tokyodisneyresort.jp/tdl/realtime/attraction/\")",
-      "Bash(curl -sS -L --max-time 20 -A \"Mozilla/5.0\" \"https://tokyodisneyresort.info/realtime.php?park=land&order=name\" -o /tmp/info.html)"
     ]
   }
 }
