@@ -24,6 +24,21 @@
       "Bash(grep -oE '\\(https?:\\)?//[^\"'\\\\''> ]*\\(\\\\.json|/api/|realtime[^\"'\\\\''> ]*\\)' /tmp/tdl_official.html)",
       "Bash(curl -sS -L --max-time 20 -o /tmp/o.html -w \"HTTP %{http_code} bytes %{size_download}\\\\n\" -A \"Mozilla/5.0\" \"https://www.tokyodisneyresort.jp/\")",
       "Bash(curl -sS -L --max-time 20 -o /tmp/tdl.html -w \"HTTP %{http_code} bytes %{size_download}\\\\n\" -A \"Mozilla/5.0 \\(iPhone; CPU iPhone OS 17_0 like Mac OS X\\) AppleWebKit/605.1.15 Mobile\" \"https://www.tokyodisneyresort.jp/tdl/realtime/attraction/\")",
+      "Bash(curl -sS -L --max-time 20 -A \"Mozilla/5.0\" \"https://tokyodisneyresort.info/realtime.php?park=land&order=name\" -o /tmp/info.html)",
+      "Bash(curl -s \"https://tdr-wait-time.com/data/waits-2026-06.csv\" -o /tmp/waits.csv -w \"HTTP %{http_code} bytes %{size_download}\\\\n\")",
+      "Bash(awk -F, 'NR>1 && $5!=\"\" {c++} END{print c+0}' /tmp/waits.csv)",
+      "Bash(awk -F, '$4==\"運営中\"' /tmp/waits.csv)",
+      "Bash(awk -F, 'NR>1{print $4}' /tmp/waits.csv)",
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://tokyodisneyresort.info/realtime.php?park=land&order=name\" -o /tmp/land.html)",
+      "Bash(sed 's/></>\\\\n</g' /tmp/land.html)",
+      "Bash(curl -s -A Mozilla/5.0 https://tdr-wait-time.com/data/waits-2026-06.csv?cb=__TRACKED_VAR____TRACKED_VAR__ -o /tmp/w2.csv -w 'HTTP %{http_code} bytes %{size_download}\\\\n')",
+      "Bash(curl -s \"https://api.github.com/users/hinaxts516-create/repos?per_page=100&sort=pushed\")",
+      "Bash(curl -s \"https://api.github.com/repos/hinaxts516-create/tdr-waiting/actions/runs?event=schedule&per_page=10\")",
+      "Bash(curl -s \"https://api.github.com/repos/hinaxts516-create/tdr-waiting/actions/workflows\")",
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://tokyodisneyresort.info/attrWait.php?attr_id=405&park=sea\" -o /tmp/attr.html -w \"HTTP %{http_code} bytes %{size_download}\\\\n\")",
+      "Bash(grep -oE '[0-9]{1,3}分' /tmp/attr.html)",
+      "Bash(grep -oiE '\\(data|chart|series|labels\\)[^;]{0,120}' /tmp/attr.html)",
+      "Bash(awk '{printf \"%s \", $0} NR%1==0{print \"\"}')"
     ]
   }
 }
