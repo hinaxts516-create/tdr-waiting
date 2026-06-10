@@ -39,13 +39,17 @@ cron-job.org（JST 9〜22 の毎時 0/30分に発火）
      （Custom で minutes=`0,30`、hours=`9-22` に相当）
 5. **Advanced settings**:
    - **Request method**: **POST**
-   - **Request headers**（1行ずつ追加）:
-     ```
-     Authorization: Bearer github_pat_ここに①のトークン
-     Accept: application/vnd.github+json
-     X-GitHub-Api-Version: 2022-11-28
-     Content-Type: application/json
-     ```
+   - **Request headers**（Key と Value を分けて入力）:
+
+     | Key | Value |
+     |---|---|
+     | `Authorization` | `Bearer ` + ①のトークン（例: `Bearer github_pat_11AB...`） |
+     | `Accept` | `application/vnd.github+json` |
+     | `X-GitHub-Api-Version` | `2022-11-28` |
+     | `Content-Type` | `application/json` |
+
+     ⚠️ トークンは `github_pat_` で始まります。`Bearer ` の後ろにトークン**全文をそのまま**貼ってください。
+     `Bearer github_pat_github_pat_...` のように `github_pat_` が**二重**にならないよう注意。
    - **Request body**:
      ```json
      {"ref":"main"}
