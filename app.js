@@ -289,9 +289,11 @@ function openModal(att) {
     curve = Predictor.dayCurve(att, state.date, weather);
     markerHour = state.hour;
     nowVal = Predictor.predict(att, state.date, state.hour, weather);
-    nowLabel = "指定時刻の予測";
-    const cov = Empirical.coverage(att);
-    const basis = Predictor.source(att) === "empirical" ? `実測${cov}日反映` : "モデル予測";
+    const src = Predictor.source(att, state.date);
+    nowLabel = src === "actual" ? "指定時刻の実測" : "指定時刻の予測";
+    const basis = src === "actual" ? "実測値"
+                : src === "empirical" ? `実測${Empirical.coverage(att)}日反映`
+                : "モデル予測";
     metaExtra = `${state.date.getMonth() + 1}/${state.date.getDate()}(${fmtDow(state.date)})・${WEATHER_LABEL[weather]}・${basis}`;
   }
 

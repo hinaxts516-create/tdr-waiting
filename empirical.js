@@ -1,33 +1,39 @@
 /* =========================================================================
- * empirical.js — 蓄積した実測履歴(data/day-*.json)から
- *   「アトラクション別・時間帯別の待ち時間プロファイル」を構築する。
+ * empirical.js — 蓄積した実測履歴(data/day-*.json)から予測の土台を作る。
  *
- *  考え方:
- *   - 各収集日の待ち時間を、その日の混雑指数 crowdIndex で割って正規化する
- *     （= “混雑1単位あたりの待ち時間”。曜日/季節/特別日の差を吸収する）
- *   - アトラクション×時間帯ごとに、全収集日で平均した正規化待ち時間を持つ
- *   - 予測時は normWait × 対象日の crowdIndex に戻すことで、
- *     収集していない日付にも実測の“形と水準”を反映できる
+ *  2段構えで「乖離」を無くす:
+ *   (A) 日付別の実測 byDate … 収集済みの“その日”を選んだら実測そのものを返す
+ *       （予測モードと実績が完全一致＝乖離ゼロ）
+ *   (B) 正規化プロファイル prof … 未収集の日付向け。各日を基準混雑指数
+ *       (曜日×季節×特別日)で正規化して平均した“混雑1単位あたりの待ち時間”。
+ *       予測時に対象日の混雑×天候を掛けて水準を戻す。
  *
- *  これにより、合成モデル(model.js)ではなく実測データが予測の土台になる。
- *  実測の無いアトラクション/時間帯だけ Predictor が合成モデルで補完する。
+ *  過去の実天候は保存していないため、正規化からは天候を除外する
+ *  （推測天候はバイアス源になるため）。天候の影響は予測時に対象日の予報/
+ *  平年から掛ける（Predictor 側）。
  * ========================================================================= */
 
 const Empirical = {
   ready: false,
   daysLoaded: 0,          // 読み込めた日数
-  prof: {},               // infoId -> { hour -> {s:正規化待ちの和, n:件数} }
-  daysById: {},           // infoId -> Set(日付文字列)  … カバレッジ表示用
-  MAX_DAYS: 60,           // 直近何日分まで取り込むか（負荷とメモリの上限）
+  prof: {},               // infoId -> { hour -> {s, n} }（正規化待ちの和/件数）
+  profMean: {},           // infoId -> { hour -> 正規化待ち平均 }（プロファイル）
+  byDate: {},             // 'YYYY-MM-DD' -> { infoId -> { hour -> 実測待ち } }
+  daysById: {},           // infoId -> Set(日付)  … カバレッジ表示用
+  MAX_DAYS: 60,
 
-  /* 30分刻み series {"9:15":160,...} を 時(hour) 平均 {9: 160, ...} に集約 */
+  dateKey(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  },
+
+  /* 30分刻み series {"9:15":160,...} を 時(hour) 平均 {9:160,...} に集約 */
   hourly(series) {
     const acc = {};
     for (const [t, w] of Object.entries(series || {})) {
       const hr = Number(String(t).split(":")[0]);
       const v = Number(w);
       if (isNaN(hr) || isNaN(v)) continue;
-      if (hr < PARK_HOURS.open || hr > PARK_HOURS.close) continue; // 営業時間内のみ
+      if (hr < PARK_HOURS.open || hr > PARK_HOURS.close) continue;
       (acc[hr] ||= { s: 0, n: 0 });
       acc[hr].s += v;
       acc[hr].n += 1;
@@ -37,14 +43,31 @@ const Empirical = {
     return out;
   },
 
-  /* days-index.json → 各 day-*.json を取得してプロファイルを構築 */
+  /* {hour->値} のテーブルから指定時(hour)を線形補間/最近傍で取り出す */
+  _interp(table, hour) {
+    if (!table) return null;
+    if (table[hour] != null) return table[hour];
+    const hrs = Object.keys(table).map(Number).sort((a, b) => a - b);
+    if (hrs.length === 0) return null;
+    let lo = null, hi = null;
+    for (const h of hrs) {
+      if (h <= hour) lo = h;
+      if (h >= hour && hi === null) hi = h;
+    }
+    if (lo !== null && hi !== null && lo !== hi) {
+      const t = (hour - lo) / (hi - lo);
+      return table[lo] * (1 - t) + table[hi] * t;
+    }
+    return table[lo !== null ? lo : hi];
+  },
+
   async load() {
     try {
       const idxRes = await fetch(`data/days-index.json?t=${Date.now()}`, { cache: "no-store" });
       if (!idxRes.ok) throw new Error(`HTTP ${idxRes.status}`);
       let dates = await idxRes.json();
       if (!Array.isArray(dates) || dates.length === 0) { this.ready = true; return false; }
-      dates = dates.slice(0, this.MAX_DAYS); // index は新しい順
+      dates = dates.slice(0, this.MAX_DAYS); // 新しい順
 
       const days = await Promise.all(dates.map(async (d) => {
         try {
@@ -57,26 +80,32 @@ const Empirical = {
         if (!day || !day.byId || !day.date) continue;
         const [y, mo, da] = day.date.split("-").map(Number);
         const date = new Date(y, mo - 1, da);
-        // 過去の実天候は保存していないため、正規化は天候を除いた環境要因
-        // (曜日×季節×特別日)のみで行う。computeCrowdIndex は weather 省略時に
-        // 天候係数=1.0 となるのでこれが基準混雑(baseCrowd)になる。
-        // 天候の影響は予測時に対象日の予報/平年から掛ける（Predictor 側）。
+        // 天候を除いた基準混雑（computeCrowdIndex は weather 省略時 係数1.0）
         const crowd = computeCrowdIndex(date) || 1;
+        const dayTable = (this.byDate[day.date] ||= {});
 
         for (const [id, series] of Object.entries(day.byId)) {
           const hourly = this.hourly(series);
-          const hrs = Object.keys(hourly);
-          if (hrs.length === 0) continue;
+          if (Object.keys(hourly).length === 0) continue;
+          dayTable[id] = hourly;                 // (A) 日付別の実測
           (this.prof[id] ||= {});
-          for (const hr of hrs) {
+          for (const [hr, w] of Object.entries(hourly)) {  // (B) 正規化プロファイル
             (this.prof[id][hr] ||= { s: 0, n: 0 });
-            this.prof[id][hr].s += hourly[hr] / crowd; // 混雑で正規化
+            this.prof[id][hr].s += w / crowd;
             this.prof[id][hr].n += 1;
           }
           (this.daysById[id] ||= new Set()).add(day.date);
         }
         this.daysLoaded++;
       }
+
+      // プロファイル平均を確定
+      for (const [id, byHr] of Object.entries(this.prof)) {
+        const m = {};
+        for (const [hr, a] of Object.entries(byHr)) m[hr] = a.s / a.n;
+        this.profMean[id] = m;
+      }
+
       this.ready = true;
       return this.daysLoaded > 0;
     } catch (e) {
@@ -85,34 +114,22 @@ const Empirical = {
     }
   },
 
-  /* そのアトラクションに実測プロファイルがあるか */
   has(att) { return !!(att && att.infoId && this.prof[att.infoId]); },
 
-  /* 実測した日数（カバレッジ） */
   coverage(att) {
     const s = att && att.infoId ? this.daysById[att.infoId] : null;
     return s ? s.size : 0;
   },
 
-  /* 指定時(hour)の「混雑1単位あたり」実測待ち時間。
-     その時刻の実測が無ければ前後の実測時刻から線形補間/最近傍で補う。 */
-  normWait(infoId, hour) {
-    const p = this.prof[infoId];
-    if (!p) return null;
-    const val = (h) => p[h].s / p[h].n;
-    if (p[hour]) return val(hour);
+  /* (A) 収集済みの“その日”の実測待ち時間（分）。無ければ null */
+  exact(infoId, dateKey, hour) {
+    const day = this.byDate[dateKey];
+    if (!day || !day[infoId]) return null;
+    return this._interp(day[infoId], hour);
+  },
 
-    const hrs = Object.keys(p).map(Number).sort((a, b) => a - b);
-    if (hrs.length === 0) return null;
-    let lo = null, hi = null;
-    for (const h of hrs) {
-      if (h <= hour) lo = h;
-      if (h >= hour && hi === null) hi = h;
-    }
-    if (lo !== null && hi !== null && lo !== hi) {
-      const t = (hour - lo) / (hi - lo);
-      return val(lo) * (1 - t) + val(hi) * t;
-    }
-    return val(lo !== null ? lo : hi);
+  /* (B) 指定時の「混雑1単位あたり」実測待ち時間（正規化プロファイル） */
+  normWait(infoId, hour) {
+    return this._interp(this.profMean[infoId], hour);
   },
 };

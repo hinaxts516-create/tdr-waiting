@@ -1,22 +1,28 @@
 /* =========================================================================
  * predictor.js — 予測の統合レイヤ
- *   実測プロファイル(Empirical)を最優先し、実測がまだ無いアトラクション/
- *   時間帯だけ合成モデル(WaitModel)で補完する。
- *   app.js は予測モードでこの Predictor を呼ぶ（WaitModel は内部フォールバック）。
+ *   優先順位:
+ *     1) その日付の実測がある → 実測そのもの（予測=実績で乖離ゼロ）
+ *     2) 実測プロファイルがある → 正規化値 × 対象日の混雑×天候
+ *     3) いずれも無い → 合成モデル(WaitModel)で補完
  * ========================================================================= */
 
 const Predictor = {
   /* 単一条件の待ち時間（分, 5分刻み） */
   predict(att, date, hour, weather) {
-    if (Empirical.has(att)) {
-      const h = Math.max(PARK_HOURS.open, Math.min(PARK_HOURS.close, Math.round(hour)));
+    const h = Math.max(PARK_HOURS.open, Math.min(PARK_HOURS.close, Math.round(hour)));
+    if (att && att.infoId && Empirical.has(att)) {
+      // 1) 収集済みの当該日 → 実測値そのまま
+      const ex = Empirical.exact(att.infoId, Empirical.dateKey(date), h);
+      if (ex != null && isFinite(ex)) return Math.max(0, Math.round(ex / 5) * 5);
+      // 2) 正規化プロファイル → 対象日の混雑×天候で水準を戻す
       const norm = Empirical.normWait(att.infoId, h);
       if (norm != null && isFinite(norm)) {
-        const crowd = computeCrowdIndex(date, weather); // 対象日の混雑に合わせて戻す
+        const crowd = computeCrowdIndex(date, weather);
         return Math.max(0, Math.round((norm * crowd) / 5) * 5);
       }
     }
-    return WaitModel.predict(att, date, hour, weather); // 実測が無ければ合成モデル
+    // 3) 合成モデル
+    return WaitModel.predict(att, date, hour, weather);
   },
 
   /* 1日分(開園〜閉園)の予測カーブ: [{hour, wait}] */
@@ -28,6 +34,10 @@ const Predictor = {
     return out;
   },
 
-  /* この予測の出どころ: "empirical"（実測ベース）/ "model"（合成モデル） */
-  source(att) { return Empirical.has(att) ? "empirical" : "model"; },
+  /* 予測の出どころ: "actual"（その日の実測）/ "empirical"（実測平均）/ "model" */
+  source(att, date) {
+    if (!att || !att.infoId || !Empirical.has(att)) return "model";
+    if (date && Empirical.byDate[Empirical.dateKey(date)]?.[att.infoId]) return "actual";
+    return "empirical";
+  },
 };
