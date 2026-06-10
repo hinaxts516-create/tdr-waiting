@@ -112,8 +112,21 @@ function init() {
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
   render();
-  loadLive();     // 起動時にバックグラウンドで実データ取得
-  loadForecast(); // 直近数日の実天気予報を取得
+  loadEmpirical(); // 蓄積した実測履歴で予測プロファイルを構築
+  loadLive();      // 起動時にバックグラウンドで実データ取得
+  loadForecast();  // 直近数日の実天気予報を取得
+}
+
+/* ---- 実測履歴の取り込み（予測の土台にする） ---- */
+async function loadEmpirical() {
+  await Empirical.load();
+  const el = $("mEmp");
+  if (el) {
+    el.innerHTML = Empirical.daysLoaded > 0
+      ? `実測反映: <b>${Empirical.daysLoaded}</b> 日分`
+      : "実測反映: <b>蓄積中</b>";
+  }
+  render(); // 実測が入った状態で予測を再描画
 }
 
 /* ---- 天気予報の取得 ---- */
@@ -162,7 +175,7 @@ function renderPredict() {
   const weather = resolveWeather(state.date).weather;
   const list = ATTRACTIONS[state.park].map((att) => ({
     att,
-    wait: WaitModel.predict(att, state.date, state.hour, weather),
+    wait: Predictor.predict(att, state.date, state.hour, weather),
   }));
 
   if (state.sort === "wait") list.sort((a, b) => b.wait - a.wait);
@@ -242,11 +255,11 @@ function renderLive() {
 function calibratedCurve(att) {
   const today = new Date();
   const weather = resolveWeather(today).weather;
-  const base = WaitModel.dayCurve(att, today, weather);
+  const base = Predictor.dayCurve(att, today, weather);
   const live = RealTime.get(att);
   if (live && live.wait != null) {
     const nowHour = clampHour(today.getHours());
-    const p = WaitModel.predict(att, today, nowHour, weather);
+    const p = Predictor.predict(att, today, nowHour, weather);
     const scale = p > 0 ? live.wait / p : 1;
     return {
       curve: base.map((c) => ({ hour: c.hour, wait: Math.max(0, Math.round((c.wait * scale) / 5) * 5) })),
@@ -273,11 +286,15 @@ function openModal(att) {
     metaExtra = cal.calibrated ? "本日の予測（実データで補正）" : "本日の予測";
   } else {
     const weather = resolveWeather(state.date).weather;
-    curve = WaitModel.dayCurve(att, state.date, weather);
+    curve = Predictor.dayCurve(att, state.date, weather);
     markerHour = state.hour;
-    nowVal = WaitModel.predict(att, state.date, state.hour, weather);
-    nowLabel = "指定時刻の予測";
-    metaExtra = `${state.date.getMonth() + 1}/${state.date.getDate()}(${fmtDow(state.date)})・${WEATHER_LABEL[weather]}`;
+    nowVal = Predictor.predict(att, state.date, state.hour, weather);
+    const src = Predictor.source(att, state.date);
+    nowLabel = src === "actual" ? "指定時刻の実測" : "指定時刻の予測";
+    const basis = src === "actual" ? "実測値"
+                : src === "empirical" ? `実測${Empirical.coverage(att)}日反映`
+                : "モデル予測";
+    metaExtra = `${state.date.getMonth() + 1}/${state.date.getDate()}(${fmtDow(state.date)})・${WEATHER_LABEL[weather]}・${basis}`;
   }
 
   const max = curve.reduce((a, b) => (b.wait > a.wait ? b : a));

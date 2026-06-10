@@ -92,6 +92,7 @@
       <span>学習データ: <b id="mSamples">—</b> 件</span>
       <span>平均誤差(MAE): <b id="mMae">—</b> 分</span>
       <span>決定係数(R²): <b id="mR2">—</b></span>
+      <span id="mEmp">実測反映: <b>—</b></span>
       <span id="mCrowd">混雑指数: <b>—</b></span>
     </div>
 
@@ -99,7 +100,7 @@
     <div class="grid" id="grid"></div>
 
     <footer class="note">
-      ※「予測」モードは合成データで学習したモデルによる予測値、「ライブ」モードは実際の待ち時間です。<br>
+      ※「予測」モードは蓄積した実測履歴をもとにした予測値（実測がまだ無いアトラクションは合成モデルで補完）、「ライブ」モードは現在の実際の待ち時間です。<br>
       ライブの待ち時間データ提供: <a href="https://tokyodisneyresort.info/" target="_blank" rel="noopener">tokyodisneyresort.info</a>（公式情報を元にした非公式サイト／最大10分の遅延あり）。本サイトは東京ディズニーリゾート公式とは関係ありません。
     </footer>
   </div>
@@ -126,6 +127,8 @@
 
   <script src="data.js"></script>
   <script src="model.js"></script>
+  <script src="empirical.js"></script>
+  <script src="predictor.js"></script>
   <script src="realtime.js"></script>
   <script src="forecast.js"></script>
   <script src="app.js"></script>
