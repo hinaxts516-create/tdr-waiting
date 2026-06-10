@@ -4,13 +4,12 @@
  *  2段構えで「乖離」を無くす:
  *   (A) 日付別の実測 byDate … 収集済みの“その日”を選んだら実測そのものを返す
  *       （予測モードと実績が完全一致＝乖離ゼロ）
- *   (B) 正規化プロファイル prof … 未収集の日付向け。各日を基準混雑指数
- *       (曜日×季節×特別日)で正規化して平均した“混雑1単位あたりの待ち時間”。
- *       予測時に対象日の混雑×天候を掛けて水準を戻す。
+ *   (B) 正規化プロファイル prof … 未収集の日付向け。各日を混雑指数
+ *       (曜日×季節×特別日×実天候)で正規化して平均した“混雑1単位あたりの
+ *       待ち時間”。予測時に対象日の混雑×天候を掛けて水準を戻す。
  *
- *  過去の実天候は保存していないため、正規化からは天候を除外する
- *  （推測天候はバイアス源になるため）。天候の影響は予測時に対象日の予報/
- *  平年から掛ける（Predictor 側）。
+ *  各 day-*.json はその日の実天候(weather)を保存している（collect-history.mjs）。
+ *  天候未保存の旧データは天候係数1.0(中立)として正規化する。
  * ========================================================================= */
 
 const Empirical = {
@@ -80,8 +79,10 @@ const Empirical = {
         if (!day || !day.byId || !day.date) continue;
         const [y, mo, da] = day.date.split("-").map(Number);
         const date = new Date(y, mo - 1, da);
-        // 天候を除いた基準混雑（computeCrowdIndex は weather 省略時 係数1.0）
-        const crowd = computeCrowdIndex(date) || 1;
+        // その日の実天候(day.weather)を含めた混雑指数で正規化する。
+        // 予測時も computeCrowdIndex(対象日, 予報/平年) で戻すので体系が一致する。
+        // 天候未保存の旧データは weather=undefined → 天候係数1.0(中立)で正規化。
+        const crowd = computeCrowdIndex(date, day.weather) || 1;
         const dayTable = (this.byDate[day.date] ||= {});
 
         for (const [id, series] of Object.entries(day.byId)) {

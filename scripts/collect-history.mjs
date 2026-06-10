@@ -48,9 +48,34 @@ function jstDate() {
   return j.toISOString().slice(0, 10);
 }
 
+/* 舞浜の天候を取得（Open-Meteo・無料/キー不要）。
+ * WMO weather_code を sunny/cloudy/rain に変換して返す。取得失敗時は null。
+ * ※ forecast.js の codeToWeather と同一マッピング（予測と整合させる）。 */
+const WEATHER_LAT = 35.6329, WEATHER_LON = 139.8804;
+function codeToWeather(code) {
+  if (code <= 1) return "sunny";                                   // 0:快晴 1:晴れ
+  if (code === 2 || code === 3 || code === 45 || code === 48) return "cloudy"; // 雲・霧
+  return "rain";                                                   // 51以上: 雨/雪/雷雨
+}
+async function fetchWeather(dateStr) {
+  try {
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}` +
+      `&daily=weather_code&timezone=Asia%2FTokyo&start_date=${dateStr}&end_date=${dateStr}`;
+    const res = await fetch(url, { headers: { "User-Agent": UA } });
+    if (!res.ok) return null;
+    const d = await res.json();
+    const code = d?.daily?.weather_code?.[0];
+    return code == null ? null : codeToWeather(code);
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const date = jstDate();
-  const day = { date, updatedAt: new Date().toISOString(), source: "tokyodisneyresort.info", byId: {} };
+  const weather = await fetchWeather(date); // その日の実天候（取得できなければ null）
+  const day = { date, weather, updatedAt: new Date().toISOString(), source: "tokyodisneyresort.info", byId: {} };
 
   let totalPoints = 0;
   for (const [infoId, park] of TARGETS) {
@@ -83,7 +108,7 @@ async function main() {
   dates.sort().reverse();
   await writeFile(idxPath, JSON.stringify(dates));
 
-  console.log(`day-${date}.json を更新（${Object.keys(day.byId).length} アトラクション / ${totalPoints} 点）`);
+  console.log(`day-${date}.json を更新（${Object.keys(day.byId).length} アトラクション / ${totalPoints} 点 / 天候=${weather ?? "不明"}）`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
