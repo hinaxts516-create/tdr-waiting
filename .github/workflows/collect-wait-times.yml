@@ -28,6 +28,11 @@ jobs:
         with:
           node-version: "20"
 
+      # スプレッドシート（CSV公開）からアトラクション一覧を同期して data.js を再生成。
+      # 取得失敗時はスクリプトが data.js を変更せず非ゼロ終了するため、収集は続行する。
+      - name: Sync attractions from spreadsheet
+        run: node scripts/sync-attractions.mjs || echo "シート同期はスキップ（既存 data.js を使用）"
+
       - name: Collect live snapshot (current)
         run: node scripts/collect-info.mjs
 
@@ -38,7 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
+          git add data/ data.js
           if git diff --staged --quiet; then
             echo "変更なし（スキップ）"
           else
