@@ -10,20 +10,31 @@
  *   1日1回でも成功すれば当日の履歴が埋まる（高頻度cron依存を排除）。
  * ========================================================================= */
 import { mkdir, writeFile, readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import vm from "node:vm";
 
 const UA = "Mozilla/5.0 (compatible; tdr-wait-time/1.0; +https://tdr-wait-time.com)";
 const DIR = "data";
 
-// 収集対象（infoId と park パラメータ）。data.js の infoId と一致。
-const TARGETS = [
-  ["100", "land"], ["414", "land"], ["123", "land"], ["112", "land"], ["110", "land"],
-  ["133", "land"], ["163", "land"], ["134", "land"], ["120", "land"], ["102", "land"],
-  ["366", "land"], ["132", "land"],
-  ["405", "sea"], ["465", "sea"], ["464", "sea"], ["173", "sea"], ["144", "sea"],
-  ["145", "sea"], ["150", "sea"], ["152", "sea"], ["466", "sea"], ["398", "sea"],
-  ["159", "sea"], ["160", "sea"], ["164", "sea"],
-];
+// 収集対象（infoId と park パラメータ）を data.js の ATTRACTIONS から動的に導出する。
+// → スプレッドシートに行を足して data.js が再生成されれば、履歴収集にも自動で反映される。
+function loadTargets() {
+  const code = readFileSync(new URL("../data.js", import.meta.url), "utf8");
+  const ctx = {};
+  vm.createContext(ctx);
+  // const は context オブジェクトのプロパティにならないため、スクリプトの
+  // 完了値として ATTRACTIONS を受け取る（末尾に式を追加）。
+  const ATTRACTIONS = vm.runInContext(code + "\nATTRACTIONS;", ctx) || {};
+  const parkParam = { TDL: "land", TDS: "sea" };
+  const targets = [];
+  for (const [park, arr] of Object.entries(ATTRACTIONS)) {
+    for (const a of arr || []) {
+      if (a && a.infoId) targets.push([String(a.infoId), parkParam[park] || "land"]);
+    }
+  }
+  return targets;
+}
+const TARGETS = loadTargets();
 
 /* attrWait.php の HTML から { "9:15": 160, ... } を抽出 */
 function parseSeries(html) {
