@@ -1,0 +1,47 @@
+name: Sync attractions
+
+# スプレッドシート（CSV公開）からアトラクション一覧を取り込み、data.js を再生成して
+# 変更があればコミットする。待ち時間収集とは独立に動くため、夜間・休園日でも反映される。
+on:
+  schedule:
+    # 15分ごと・24時間（GitHubのcronは数分遅延・高負荷時に間引きあり。実用上15分以内に反映）。
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {} # 手動実行も可能
+
+permissions:
+  contents: write
+
+# 同期ジョブが重ならないようにする
+concurrency:
+  group: sync-attractions
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # 取得失敗（非公開・一時的なエラー等）時はスクリプトが data.js を変更せず
+      # 非ゼロ終了する。その場合はコミットすべき変更が無いだけなので job は成功扱いにする。
+      - name: Sync attractions from spreadsheet
+        run: node scripts/sync-attractions.mjs || echo "シート同期はスキップ（取得失敗・既存 data.js を維持）"
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.js
+          if git diff --staged --quiet; then
+            echo "変更なし（スキップ）"
+          else
+            git commit -m "data.js: sync attractions from spreadsheet $(date -u +%Y-%m-%dT%H:%MZ)"
+            # 収集ワークフローと push が競合しうるので rebase してリトライ
+            for i in 1 2 3 4 5; do
+              git pull --rebase origin main && git push && break || { echo "push retry $i"; sleep 5; }
+            done
+          fi
