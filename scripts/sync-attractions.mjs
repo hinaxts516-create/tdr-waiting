@@ -62,6 +62,7 @@ function headerIndex(header) {
     capacity: ["capacity", "さばける量", "回転", "回転率"],
     infoId: ["infoid", "attrid", "attr_id"],
     dpa: ["dpa", "価格", "dpa価格"],
+    closed: ["closed", "休止", "休止中", "運休", "休館", "クローズ", "status", "状態", "運営状況"],
   };
   const cells = header.map(norm);
   const idx = {};
@@ -101,10 +102,16 @@ function toAttraction(cols, idx) {
   };
   const dpa = num("dpa", null);
   if (dpa != null && dpa > 0) att.dpa = Math.round(dpa);
+  if (isClosed(get("closed"))) att.closed = true; // J列: 休止中フラグ
   att._defaults = { popularity: get("popularity") === "", capacity: get("capacity") === "" };
   return att;
 }
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// 休止フラグ列の判定: 空欄や明示的な否定語は運営、それ以外の値が入っていれば休止中。
+// ※ 「休止中」列なので ○ や TRUE 等は休止扱い。空欄や明示的な否定だけ運営とする。
+const NOT_CLOSED = new Set(["", "0", "false", "no", "n", "×", "✕", "x", "運営", "運営中", "通常", "-", "—"]);
+const isClosed = (v) => { const s = String(v).trim().toLowerCase(); return s !== "" && !NOT_CLOSED.has(s); };
 
 /* data.js のオブジェクトリテラルを生成 */
 function renderAttractions(list) {
@@ -120,6 +127,7 @@ function renderAttractions(list) {
       `infoId: ${a.infoId ? `"${esc(a.infoId)}"` : "null"}`,
     ];
     if (a.dpa) parts.push(`dpa: ${a.dpa}`);
+    if (a.closed) parts.push(`closed: true`);
     return `    { ${parts.join(", ")} },`;
   };
   const tdl = list.filter((a) => a.park === "TDL").map(line).join("\n");
