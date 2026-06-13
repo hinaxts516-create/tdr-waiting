@@ -175,12 +175,15 @@ function renderPredict() {
   const weather = resolveWeather(state.date).weather;
   const list = ATTRACTIONS[state.park].map((att) => ({
     att,
-    wait: Predictor.predict(att, state.date, state.hour, weather),
+    closed: !!att.closed,
+    wait: att.closed ? null : Predictor.predict(att, state.date, state.hour, weather),
   }));
 
-  if (state.sort === "wait") list.sort((a, b) => b.wait - a.wait);
-  else if (state.sort === "waitAsc") list.sort((a, b) => a.wait - b.wait);
-  else list.sort((a, b) => a.att.name.localeCompare(b.att.name, "ja"));
+  // 休止中は常に末尾。その上で選択中の基準で並べる。
+  const closedLast = (a, b) => (a.closed ? 1 : 0) - (b.closed ? 1 : 0);
+  if (state.sort === "wait") list.sort((a, b) => closedLast(a, b) || b.wait - a.wait);
+  else if (state.sort === "waitAsc") list.sort((a, b) => closedLast(a, b) || a.wait - b.wait);
+  else list.sort((a, b) => closedLast(a, b) || a.att.name.localeCompare(b.att.name, "ja"));
 
   const crowd = computeCrowdIndex(state.date, weather);
   $("mCrowd").innerHTML = `混雑指数: <b>${crowd.toFixed(2)}</b>（${WEATHER_LABEL[weather]}・${fmtDow(state.date)}曜）`;
@@ -189,17 +192,26 @@ function renderPredict() {
 
   const grid = $("grid");
   grid.innerHTML = "";
-  for (const { att, wait } of list) {
-    const lv = level(wait);
+  for (const { att, wait, closed } of list) {
     const card = document.createElement("div");
     card.className = "card";
-    card.innerHTML = `
-      <div class="name">${att.name}</div>
-      <div class="meta">${att.area}・${att.type}</div>
-      <div class="wait"><span class="num">${wait}</span><span class="unit">分</span></div>
-      <span class="badge ${lv.cls}">${lv.text}</span>
-      ${dpaChipHtml(att, wait)}
-    `;
+    if (closed) {
+      card.classList.add("dim");
+      card.innerHTML = `
+        <div class="name">${att.name}</div>
+        <div class="meta">${att.area}・${att.type}</div>
+        <div class="status-txt">休止中</div>
+      `;
+    } else {
+      const lv = level(wait);
+      card.innerHTML = `
+        <div class="name">${att.name}</div>
+        <div class="meta">${att.area}・${att.type}</div>
+        <div class="wait"><span class="num">${wait}</span><span class="unit">分</span></div>
+        <span class="badge ${lv.cls}">${lv.text}</span>
+        ${dpaChipHtml(att, wait)}
+      `;
+    }
     card.addEventListener("click", () => openModal(att));
     grid.appendChild(card);
   }
@@ -270,10 +282,29 @@ function calibratedCurve(att) {
   return { curve: base, anchorHour: clampHour(today.getHours()), calibrated: false };
 }
 
+/* 休止中の施設のモーダル（予測は表示しない） */
+function openClosedModal(att) {
+  $("mTitle").textContent = att.name;
+  $("mMeta").textContent = `${att.area}・${att.type}　|　休止中`;
+  $("nowLabel").textContent = "状態";
+  $("nowWait").textContent = "休止中";
+  $("nowUnit").style.display = "none";
+  $("maxWait").textContent = "—";
+  $("bestDay").textContent = "—";
+  $("bestNight").textContent = "—";
+  $("dpaBox").style.display = "none";
+  const c = $("chart");
+  c.getContext("2d").clearRect(0, 0, c.width, c.height);
+  $("modal").classList.add("open");
+}
+
 /* ---- 詳細モーダル ---- */
 function openModal(att) {
   state.selected = att;
   const live = RealTime.get(att);
+
+  // 予測モードで休止中の施設は予測を出さない
+  if (state.mode !== "live" && att.closed) { openClosedModal(att); return; }
 
   let curve, markerHour, nowLabel, nowVal, metaExtra;
   if (state.mode === "live") {
