@@ -1,5 +1,6 @@
 /* =========================================================================
  * app.js — UI ロジック（パーク切替・一覧描画・詳細モーダル・チャート）
+ *   文言は i18n.js の L / ヘルパ経由（日本語・英語を <html lang> で切替）。
  * ========================================================================= */
 
 const state = {
@@ -10,11 +11,6 @@ const state = {
   mode: "predict", // "predict" | "live"
   selected: null,
 };
-
-// 天候は選択させず自動決定する。
-//  直近数日は実天気予報(Forecast/Open-Meteo)、それ以降は平年気候(predictWeather)。
-const WEATHER_EMOJI = { sunny: "☀️ 晴れ", cloudy: "☁️ くもり", rain: "🌧️ 雨" };
-const SOURCE_LABEL = { forecast: "予報", climatology: "平年" };
 
 /* 指定日の天候を決定: 実予報があれば優先、無ければ平年気候 */
 function resolveWeather(date) {
@@ -32,14 +28,14 @@ const $ = (id) => document.getElementById(id);
 
 /* 待ち時間 → 混雑レベルのラベル/クラス */
 function level(wait) {
-  if (wait <= 20) return { cls: "lv-low", text: "空いている" };
-  if (wait <= 45) return { cls: "lv-mid", text: "やや混雑" };
-  if (wait <= 80) return { cls: "lv-high", text: "混雑" };
-  return { cls: "lv-vhigh", text: "大変混雑" };
+  if (wait <= 20) return { cls: "lv-low", text: L.level.low };
+  if (wait <= 45) return { cls: "lv-mid", text: L.level.mid };
+  if (wait <= 80) return { cls: "lv-high", text: L.level.high };
+  return { cls: "lv-vhigh", text: L.level.vhigh };
 }
 
 function fmtDow(date) {
-  return "日月火水木金土"[date.getDay()];
+  return L.dow(date);
 }
 
 /* DPA（プレミアアクセス）を買うべきか判定。
@@ -47,18 +43,18 @@ function fmtDow(date) {
 function dpaVerdict(att, wait) {
   if (!att.dpa) return null;        // DPA対象外
   if (wait == null) return null;    // 待ち時間データなし（休止等）
-  if (wait < 30) return { lv: "dpa-no", label: "不要", ypm: null, reason: "待ちが短く、並んでも十分です" };
+  if (wait < 30) return { lv: "dpa-no", label: L.dpa.no, ypm: null, reason: L.dpaReason.no };
   const ypm = Math.round(att.dpa / wait); // 円/分（小さいほどお得）
-  if (ypm <= 30) return { lv: "dpa-buy", label: "買う価値大", ypm, reason: "時間効率が高く、購入の価値が大きいです" };
-  if (ypm <= 50) return { lv: "dpa-maybe", label: "検討", ypm, reason: "予算と相談。混雑が増すなら購入価値が上がります" };
-  return { lv: "dpa-no", label: "割高", ypm, reason: "今は並んだ方がお得かもしれません" };
+  if (ypm <= 30) return { lv: "dpa-buy", label: L.dpa.buy, ypm, reason: L.dpaReason.buy };
+  if (ypm <= 50) return { lv: "dpa-maybe", label: L.dpa.maybe, ypm, reason: L.dpaReason.maybe };
+  return { lv: "dpa-no", label: L.dpa.pricey, ypm, reason: L.dpaReason.pricey };
 }
 
 /* カード用の小さなDPAチップ */
 function dpaChipHtml(att, wait) {
   const v = dpaVerdict(att, wait);
   if (!v) return "";
-  return `<span class="dpa-chip ${v.lv}">DPA ${v.label}</span>`;
+  return `<span class="dpa-chip ${v.lv}">${L.dpaChip(v.label)}</span>`;
 }
 
 /* ---- 初期化 ---- */
@@ -122,9 +118,7 @@ async function loadEmpirical() {
   await Empirical.load();
   const el = $("mEmp");
   if (el) {
-    el.innerHTML = Empirical.daysLoaded > 0
-      ? `実測反映: <b>${Empirical.daysLoaded}</b> 日分`
-      : "実測反映: <b>蓄積中</b>";
+    el.innerHTML = Empirical.daysLoaded > 0 ? L.empReflect(Empirical.daysLoaded) : L.empAccum;
   }
   render(); // 実測が入った状態で予測を再描画
 }
@@ -146,19 +140,19 @@ async function loadLive() {
 function setModeStatus(stateStr) {
   const el = $("modeStatus");
   el.className = "mode-status";
-  if (stateStr === "loading") { el.textContent = "実データ取得中…"; return; }
+  if (stateStr === "loading") { el.textContent = L.liveLoading; return; }
   if (state.mode !== "live") {
-    el.textContent = RealTime.ok ? "実データ利用可（ライブに切替できます）" : "";
+    el.textContent = RealTime.ok ? L.liveAvail : "";
     return;
   }
   if (RealTime.ok) {
     const t = RealTime.updatedAt;
     const hh = String(t.getHours()).padStart(2, "0");
     const mm = String(t.getMinutes()).padStart(2, "0");
-    el.innerHTML = `<span class="live-dot"></span>LIVE ・ 最終更新 ${hh}:${mm} ・ 提供: ${RealTime.source}`;
+    el.innerHTML = `<span class="live-dot"></span>${L.liveUpdated(hh, mm, RealTime.source)}`;
   } else {
     el.className = "mode-status err";
-    el.textContent = "⚠ 実データの取得に失敗しました（予測値で代替表示）";
+    el.textContent = L.liveFail;
   }
 }
 
@@ -166,7 +160,7 @@ function setModeStatus(stateStr) {
 function render() {
   // 予測天候の表示を更新（直近は実予報、以降は平年）
   const { weather: w, source } = resolveWeather(state.date);
-  $("weatherPred").textContent = `${WEATHER_EMOJI[w]}（${SOURCE_LABEL[source]}）`;
+  $("weatherPred").textContent = L.weatherPred(L.weatherEmoji[w], L.source[source]);
   state.mode === "live" ? renderLive() : renderPredict();
 }
 
@@ -183,12 +177,12 @@ function renderPredict() {
   const closedLast = (a, b) => (a.closed ? 1 : 0) - (b.closed ? 1 : 0);
   if (state.sort === "wait") list.sort((a, b) => closedLast(a, b) || b.wait - a.wait);
   else if (state.sort === "waitAsc") list.sort((a, b) => closedLast(a, b) || a.wait - b.wait);
-  else list.sort((a, b) => closedLast(a, b) || a.att.name.localeCompare(b.att.name, "ja"));
+  else list.sort((a, b) => closedLast(a, b) || attName(a.att).localeCompare(attName(b.att), LANG));
 
   const crowd = computeCrowdIndex(state.date, weather);
-  $("mCrowd").innerHTML = `混雑指数: <b>${crowd.toFixed(2)}</b>（${WEATHER_LABEL[weather]}・${fmtDow(state.date)}曜）`;
+  $("mCrowd").innerHTML = L.crowdIndex(crowd.toFixed(2), L.weather[weather], fmtDow(state.date));
   $("sectionTitle").textContent =
-    `${PARK_LABELS[state.park]} ／ ${state.date.getMonth() + 1}月${state.date.getDate()}日(${fmtDow(state.date)}) ${String(state.hour).padStart(2, "0")}:00 の予測`;
+    L.predictTitle(parkLabel(state.park), L.fmtMDDow(state.date), String(state.hour).padStart(2, "0"));
 
   const grid = $("grid");
   grid.innerHTML = "";
@@ -198,16 +192,16 @@ function renderPredict() {
     if (closed) {
       card.classList.add("dim");
       card.innerHTML = `
-        <div class="name">${att.name}</div>
-        <div class="meta">${att.area}・${att.type}</div>
-        <div class="status-txt">休止中</div>
+        <div class="name">${attName(att)}</div>
+        <div class="meta">${attMeta(att)}</div>
+        <div class="status-txt">${L.closed}</div>
       `;
     } else {
       const lv = level(wait);
       card.innerHTML = `
-        <div class="name">${att.name}</div>
-        <div class="meta">${att.area}・${att.type}</div>
-        <div class="wait"><span class="num">${wait}</span><span class="unit">分</span></div>
+        <div class="name">${attName(att)}</div>
+        <div class="meta">${attMeta(att)}</div>
+        <div class="wait"><span class="num">${wait}</span><span class="unit">${L.unit}</span></div>
         <span class="badge ${lv.cls}">${lv.text}</span>
         ${dpaChipHtml(att, wait)}
       `;
@@ -219,7 +213,7 @@ function renderPredict() {
 
 /* ライブモード（実データ） */
 function renderLive() {
-  $("sectionTitle").textContent = `${PARK_LABELS[state.park]} ／ 現在のリアルタイム待ち時間`;
+  $("sectionTitle").textContent = L.liveTitle(parkLabel(state.park));
 
   // 並び替え用のソートキー: 運営中=待ち時間, それ以外=-1(末尾)
   const rows = ATTRACTIONS[state.park].map((att) => {
@@ -230,7 +224,7 @@ function renderLive() {
   if (state.sort === "wait") rows.sort((a, b) => b.sortVal - a.sortVal);
   else if (state.sort === "waitAsc")
     rows.sort((a, b) => (a.operating ? a.sortVal : 1e9) - (b.operating ? b.sortVal : 1e9));
-  else rows.sort((a, b) => a.att.name.localeCompare(b.att.name, "ja"));
+  else rows.sort((a, b) => attName(a.att).localeCompare(attName(b.att), LANG));
 
   const grid = $("grid");
   grid.innerHTML = "";
@@ -240,18 +234,18 @@ function renderLive() {
     let body;
     if (operating) {
       const lv = level(live.wait);
-      body = `<div class="wait"><span class="num">${live.wait}</span><span class="unit">分</span></div>
+      body = `<div class="wait"><span class="num">${live.wait}</span><span class="unit">${L.unit}</span></div>
               <span class="badge ${lv.cls}">${lv.text}</span>${dpaChipHtml(att, live.wait)}`;
     } else if (live) {
       card.classList.add("dim");
-      body = `<div class="status-txt">${RealTime.statusLabel(live.status)}</div>`;
+      body = `<div class="status-txt">${tStatus(live.status)}</div>`;
     } else {
       card.classList.add("dim");
-      body = `<div class="status-txt">実データなし</div>`;
+      body = `<div class="status-txt">${L.noLiveData}</div>`;
     }
     card.innerHTML = `
-      <div class="name">${att.name}</div>
-      <div class="meta">${att.area}・${att.type}</div>
+      <div class="name">${attName(att)}</div>
+      <div class="meta">${attMeta(att)}</div>
       ${body}
     `;
     card.addEventListener("click", () => openModal(att));
@@ -259,7 +253,7 @@ function renderLive() {
   }
 
   if (!RealTime.ok && !rows.some((r) => r.live)) {
-    grid.innerHTML = `<div class="status-txt" style="padding:20px">実データを取得できませんでした。「予測」モードをご利用ください。</div>`;
+    grid.innerHTML = `<div class="status-txt" style="padding:20px">${L.liveFetchFail}</div>`;
   }
 }
 
@@ -284,10 +278,10 @@ function calibratedCurve(att) {
 
 /* 休止中の施設のモーダル（予測は表示しない） */
 function openClosedModal(att) {
-  $("mTitle").textContent = att.name;
-  $("mMeta").textContent = `${att.area}・${att.type}　|　休止中`;
-  $("nowLabel").textContent = "状態";
-  $("nowWait").textContent = "休止中";
+  $("mTitle").textContent = attName(att);
+  $("mMeta").textContent = `${attMeta(att)}${L.metaSep}${L.closed}`;
+  $("nowLabel").textContent = L.statusK;
+  $("nowWait").textContent = L.closed;
   $("nowUnit").style.display = "none";
   $("maxWait").textContent = "—";
   $("bestDay").textContent = "—";
@@ -312,20 +306,20 @@ function openModal(att) {
     curve = cal.curve;
     markerHour = cal.anchorHour;
     const operating = live && live.wait != null;
-    nowVal = operating ? live.wait : (live ? RealTime.statusLabel(live.status) : "—");
-    nowLabel = "現在の実待ち時間";
-    metaExtra = cal.calibrated ? "本日の予測（実データで補正）" : "本日の予測";
+    nowVal = operating ? live.wait : (live ? tStatus(live.status) : "—");
+    nowLabel = L.nowLiveWait;
+    metaExtra = cal.calibrated ? L.todayPredictCal : L.todayPredict;
   } else {
     const weather = resolveWeather(state.date).weather;
     curve = Predictor.dayCurve(att, state.date, weather);
     markerHour = state.hour;
     nowVal = Predictor.predict(att, state.date, state.hour, weather);
     const src = Predictor.source(att, state.date);
-    nowLabel = src === "actual" ? "指定時刻の実測" : "指定時刻の予測";
-    const basis = src === "actual" ? "実測値"
-                : src === "empirical" ? `実測${Empirical.coverage(att)}日反映`
-                : "モデル予測";
-    metaExtra = `${state.date.getMonth() + 1}/${state.date.getDate()}(${fmtDow(state.date)})・${WEATHER_LABEL[weather]}・${basis}`;
+    nowLabel = src === "actual" ? L.nowActual : L.nowPredict;
+    const basis = src === "actual" ? L.basisActual
+                : src === "empirical" ? L.basisEmp(Empirical.coverage(att))
+                : L.basisModel;
+    metaExtra = L.predictMeta(L.fmtMDShort(state.date) + `(${fmtDow(state.date)})`, L.weather[weather], basis);
   }
 
   const max = curve.reduce((a, b) => (b.wait > a.wait ? b : a));
@@ -335,14 +329,14 @@ function openModal(att) {
   const bestDay = minIn(PARK_HOURS.open, 15);
   const bestNight = minIn(16, 20);
 
-  $("mTitle").textContent = att.name;
-  $("mMeta").textContent = `${att.area}・${att.type}　|　${metaExtra}`;
+  $("mTitle").textContent = attName(att);
+  $("mMeta").textContent = `${attMeta(att)}${L.metaSep}${metaExtra}`;
   $("nowLabel").textContent = nowLabel;
   $("nowWait").textContent = nowVal;
   $("nowUnit").style.display = (typeof nowVal === "number") ? "" : "none";
   $("maxWait").textContent = max.wait;
-  $("bestDay").textContent = `${bestDay.hour}:00 (${bestDay.wait}分)`;
-  $("bestNight").textContent = `${bestNight.hour}:00 (${bestNight.wait}分)`;
+  $("bestDay").textContent = L.timeWait(bestDay.hour, bestDay.wait);
+  $("bestNight").textContent = L.timeWait(bestNight.hour, bestNight.wait);
 
   // DPA判定（その時の待ち時間 nowVal を使用）
   const dpaBox = $("dpaBox");
@@ -351,14 +345,13 @@ function openModal(att) {
   if (v) {
     dpaBox.style.display = "";
     dpaBox.innerHTML =
-      `<div class="dpa-title">🎫 DPA判定: <span class="dpa-chip ${v.lv}">${v.label}</span></div>` +
-      `<div class="dpa-detail">価格 約¥${att.dpa.toLocaleString()}　／　想定待ち ${dpaWait}分` +
-      `${v.ypm != null ? `　／　約${v.ypm}円/分` : ""}<br>${v.reason}</div>`;
+      `<div class="dpa-title">${L.dpaVerdictTitle(`<span class="dpa-chip ${v.lv}">${v.label}</span>`)}</div>` +
+      `<div class="dpa-detail">${L.dpaDetail(att.dpa.toLocaleString(), dpaWait, v.ypm)}<br>${v.reason}</div>`;
   } else if (att.dpa) {
     dpaBox.style.display = "";
     dpaBox.innerHTML =
-      `<div class="dpa-title">🎫 DPA対象</div>` +
-      `<div class="dpa-detail">待ち時間データがないため判定できません（休止中など）。価格 約¥${att.dpa.toLocaleString()}</div>`;
+      `<div class="dpa-title">${L.dpaTargetTitle}</div>` +
+      `<div class="dpa-detail">${L.dpaNoData(att.dpa.toLocaleString())}</div>`;
   } else {
     dpaBox.style.display = "none";
   }
@@ -445,7 +438,7 @@ function drawChart(curve, curHour) {
   ctx.fillStyle = "#1f2a44";
   ctx.font = "bold 12px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText(`${cur.wait}分`, cx, cy - 12);
+  ctx.fillText(L.chartUnit(cur.wait), cx, cy - 12);
 }
 
 document.addEventListener("DOMContentLoaded", init);

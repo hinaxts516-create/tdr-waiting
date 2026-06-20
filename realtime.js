@@ -17,7 +17,7 @@ const RealTime = {
     this.ok = false;
     this.error = null;
     try {
-      const res = await fetch(`data/live-latest.json?t=${Date.now()}`, { cache: "no-store" });
+      const res = await fetch(`/data/live-latest.json?t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       this.byId = data.byId || {};
