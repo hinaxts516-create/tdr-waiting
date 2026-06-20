@@ -1,6 +1,6 @@
 /* =========================================================================
  * history.js — 過去の待ち時間データ（data/day-YYYY-MM-DD.json）の一覧表示
- *   日付一覧は data/days-index.json から取得。
+ *   日付一覧は data/days-index.json から取得。文言は i18n.js の L 経由。
  * ========================================================================= */
 
 const $ = (id) => document.getElementById(id);
@@ -9,13 +9,12 @@ let dayData = null; // 現在表示中の日のデータ
 
 function fmtDateLabel(key) {
   const [y, m, d] = key.split("-").map(Number);
-  const dow = "日月火水木金土"[new Date(y, m - 1, d).getDay()];
-  return `${m}月${d}日(${dow})`;
+  return L.histDateLabel(y, m, d);
 }
 
 async function loadDay(date) {
   try {
-    const res = await fetch(`data/day-${date}.json?t=${Date.now()}`, { cache: "no-store" });
+    const res = await fetch(`/data/day-${date}.json?t=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     dayData = await res.json();
   } catch {
@@ -38,12 +37,12 @@ function init() {
   });
   $("sortSelect").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
 
-  fetch(`data/days-index.json?t=${Date.now()}`, { cache: "no-store" })
+  fetch(`/data/days-index.json?t=${Date.now()}`, { cache: "no-store" })
     .then((r) => (r.ok ? r.json() : []))
     .catch(() => [])
     .then(async (dates) => {
       if (!dates || dates.length === 0) {
-        $("info").textContent = "まだ収集データがありません（自動収集が貯まると表示されます）。";
+        $("info").textContent = L.histEmpty;
         $("tableWrap").innerHTML = "";
         return;
       }
@@ -83,26 +82,26 @@ function render() {
   const val = (r, k) => (r.st ? r.st[k] : -1);
   if (state.sort === "avg") rows.sort((a, b) => val(b, "avg") - val(a, "avg"));
   else if (state.sort === "max") rows.sort((a, b) => val(b, "max") - val(a, "max"));
-  else rows.sort((a, b) => a.att.name.localeCompare(b.att.name, "ja"));
+  else rows.sort((a, b) => attName(a.att).localeCompare(attName(b.att), LANG));
 
   const withData = rows.filter((r) => r.st).length;
   const upd = dayData && dayData.updatedAt ? new Date(dayData.updatedAt) : null;
   $("info").innerHTML =
-    `<span><b>${fmtDateLabel(state.date)}</b> の実績</span>` +
-    `<span>データのあるアトラクション: <b>${withData}</b></span>` +
-    (upd ? `<span>最終更新: <b>${String(upd.getHours()).padStart(2, "0")}:${String(upd.getMinutes()).padStart(2, "0")}</b></span>` : "");
-  $("sectionTitle").textContent = `${PARK_LABELS[state.park]} ／ ${fmtDateLabel(state.date)} の待ち時間（実績）`;
+    L.histActual(fmtDateLabel(state.date)) +
+    L.histWithData(withData) +
+    (upd ? L.histUpdated(String(upd.getHours()).padStart(2, "0"), String(upd.getMinutes()).padStart(2, "0")) : "");
+  $("sectionTitle").textContent = L.histSectionTitle(parkLabel(state.park), fmtDateLabel(state.date));
 
   const body = rows.map((r) => {
     if (!r.st) {
-      return `<tr class="nodata"><td class="nm">${r.att.name}</td><td colspan="4">記録なし（休止など）</td></tr>`;
+      return `<tr class="nodata"><td class="nm">${attName(r.att)}</td><td colspan="4">${L.histNoData}</td></tr>`;
     }
     const s = r.st;
     return `<tr>
-      <td class="nm">${r.att.name}</td>
-      <td class="num">${s.avg}<small>分</small></td>
-      <td class="num">${s.max}<small>分</small> <span class="muted">(${s.peakTime})</span></td>
-      <td class="num">${s.min}<small>分</small></td>
+      <td class="nm">${attName(r.att)}</td>
+      <td class="num">${s.avg}<small>${L.unit}</small></td>
+      <td class="num">${s.max}<small>${L.unit}</small> <span class="muted">(${s.peakTime})</span></td>
+      <td class="num">${s.min}<small>${L.unit}</small></td>
       <td class="num">${s.n}</td>
     </tr>`;
   }).join("");
@@ -110,7 +109,7 @@ function render() {
   $("tableWrap").innerHTML = `
     <table class="hist-table">
       <thead><tr>
-        <th>アトラクション</th><th>平均</th><th>最大(ピーク)</th><th>最小</th><th>記録数</th>
+        <th>${L.histCols.name}</th><th>${L.histCols.avg}</th><th>${L.histCols.max}</th><th>${L.histCols.min}</th><th>${L.histCols.n}</th>
       </tr></thead>
       <tbody>${body}</tbody>
     </table>`;

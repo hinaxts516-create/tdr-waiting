@@ -56,6 +56,7 @@ function headerIndex(header) {
     id: ["id"],
     park: ["park", "パーク"],
     name: ["name", "名前", "名称", "アトラクション", "アトラクション名"],
+    nameEn: ["nameen", "name_en", "英語名", "英名", "englishname", "name(en)"],
     area: ["area", "エリア"],
     type: ["type", "種別", "カテゴリ", "タイプ"],
     popularity: ["popularity", "人気", "人気度"],
@@ -100,6 +101,8 @@ function toAttraction(cols, idx) {
     capacity: clamp(num("capacity", 0.7), 0.3, 1),
     infoId: infoId || null,
   };
+  const nameEn = get("nameEn");
+  if (nameEn) att.nameEn = nameEn;
   const dpa = num("dpa", null);
   if (dpa != null && dpa > 0) att.dpa = Math.round(dpa);
   if (isClosed(get("closed"))) att.closed = true; // J列: 休止中フラグ
@@ -120,12 +123,15 @@ function renderAttractions(list) {
     const parts = [
       `id: "${esc(a.id)}"`,
       `name: "${esc(a.name)}"`,
+    ];
+    if (a.nameEn) parts.push(`nameEn: "${esc(a.nameEn)}"`);
+    parts.push(
       `area: "${esc(a.area)}"`,
       `type: "${esc(a.type)}"`,
       `popularity: ${a.popularity}`,
       `capacity: ${a.capacity}`,
       `infoId: ${a.infoId ? `"${esc(a.infoId)}"` : "null"}`,
-    ];
+    );
     if (a.dpa) parts.push(`dpa: ${a.dpa}`);
     if (a.closed) parts.push(`closed: true`);
     return `    { ${parts.join(", ")} },`;

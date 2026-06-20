@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- SEO -->
+<title>Tokyo Disneyland & DisneySea Real-Time Wait Times | TDR Wait Times</title>
+<meta name="description" content="Check real-time wait times for Tokyo Disneyland and Tokyo DisneySea. Hourly crowd forecasts and DPA (Disney Premier Access) buy/skip advice to help plan your park day.">
+<meta name="keywords" content="Tokyo Disneyland wait times, Tokyo DisneySea wait times, TDR wait times, Tokyo Disney crowd, DPA, Disney Premier Access, real-time">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://tdr-wait-time.com/en/">
+<link rel="alternate" hreflang="ja" href="https://tdr-wait-time.com/">
+<link rel="alternate" hreflang="en" href="https://tdr-wait-time.com/en/">
+<link rel="alternate" hreflang="x-default" href="https://tdr-wait-time.com/">
+
+<!-- OGP -->
+<meta property="og:title" content="Tokyo Disneyland & DisneySea Real-Time Wait Times | TDR Wait Times">
+<meta property="og:description" content="Real-time wait times, crowd forecasts, and DPA buy/skip advice — all in one place for planning your park day.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://tdr-wait-time.com/en/">
+<meta property="og:site_name" content="TDR Wait Times">
+<meta property="og:locale" content="en_US">
+
+<!-- X card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Tokyo Disneyland & DisneySea Real-Time Wait Times | TDR Wait Times">
+<meta name="twitter:description" content="Real-time wait times, crowd forecasts, and DPA buy/skip advice for planning your park day.">
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-QR469Q19WY"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-QR469Q19WY');
+  </script>
+
+  <title>TDR Wait Times ✨</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div>
+        <h1><span class="spark">✨</span> TDR Wait Times</h1>
+        <div class="subtitle">Attraction wait times from a forecast model and real-time data</div>
+      </div>
+      <div class="header-right">
+        <a class="nav-link" href="/">日本語</a>
+        <a class="nav-link" href="history.html">📊 History</a>
+        <div class="park-tabs" id="parkTabs">
+          <button data-park="TDL" class="active">Land</button>
+          <button data-park="TDS">Sea</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="controls">
+      <div class="field">
+        <label for="dateInput">Date</label>
+        <input type="date" id="dateInput" />
+      </div>
+      <div class="field">
+        <label for="timeInput">Time <span class="time-val" id="timeVal">12:00</span></label>
+        <input type="range" id="timeInput" min="9" max="21" step="1" value="12" />
+      </div>
+      <div class="field">
+        <label>Forecast weather<small>(auto)</small></label>
+        <div class="weather-pred" id="weatherPred">—</div>
+      </div>
+      <div class="field">
+        <label for="sortInput">Sort</label>
+        <select id="sortInput">
+          <option value="wait">Longest wait</option>
+          <option value="waitAsc">Shortest wait</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+    </section>
+
+    <div class="mode-row">
+      <div class="mode-tabs" id="modeTabs">
+        <button data-mode="predict" class="active">📊 Forecast (model)</button>
+        <button data-mode="live">🔴 Live (real data)</button>
+      </div>
+      <div class="mode-status" id="modeStatus"></div>
+    </div>
+
+    <div class="model-badge" id="modelBadge">
+      <span><span class="dot"></span><b>Forecast model active</b></span>
+      <span>Training data: <b id="mSamples">—</b> items</span>
+      <span>Mean error (MAE): <b id="mMae">—</b> min</span>
+      <span>R²: <b id="mR2">—</b></span>
+      <span id="mEmp">Live data: <b>—</b></span>
+      <span id="mCrowd">Crowd index: <b>—</b></span>
+    </div>
+
+    <div class="section-title" id="sectionTitle">Wait time forecast</div>
+    <div class="grid" id="grid"></div>
+
+    <footer class="note">
+      ※ "Forecast" mode shows predictions based on accumulated real history (attractions without data yet are filled by a synthetic model); "Live" mode shows current actual wait times.<br>
+      Live wait-time data: <a href="https://tokyodisneyresort.info/" target="_blank" rel="noopener">tokyodisneyresort.info</a> (an unofficial site based on official info / up to ~10 min delay). This site is not affiliated with the official Tokyo Disney Resort.
+    </footer>
+  </div>
+
+  <!-- Detail modal -->
+  <div class="modal-backdrop" id="modal">
+    <div class="modal">
+      <button class="modal-close" id="modalClose">×</button>
+      <h2 id="mTitle"></h2>
+      <div class="meta" id="mMeta"></div>
+      <div class="now-box">
+        <div class="item"><div class="k" id="nowLabel">Forecast at selected time</div><div class="v"><span id="nowWait">—</span><small id="nowUnit">min</small></div></div>
+        <div class="item"><div class="k">Today's max forecast</div><div class="v"><span id="maxWait">—</span><small>min</small></div></div>
+        <div class="item"><div class="k">Best daytime<small>(before 15:00)</small></div><div class="v" id="bestDay" style="font-size:22px">—</div></div>
+        <div class="item"><div class="k">Best evening<small>(16:00–20:00)</small></div><div class="v" id="bestNight" style="font-size:22px">—</div></div>
+      </div>
+      <div class="dpa-box" id="dpaBox" style="display:none"></div>
+      <div class="chart-wrap">
+        <canvas id="chart"></canvas>
+        <div class="legend">Blue line = day's forecast wait curve / <span class="cur">●</span> selected time</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../data.js"></script>
+  <script src="../i18n.js"></script>
+  <script src="../model.js"></script>
+  <script src="../empirical.js"></script>
+  <script src="../predictor.js"></script>
+  <script src="../realtime.js"></script>
+  <script src="../forecast.js"></script>
+  <script src="../app.js"></script>
+</body>
+</html>

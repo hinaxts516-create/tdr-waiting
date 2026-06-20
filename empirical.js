@@ -62,7 +62,7 @@ const Empirical = {
 
   async load() {
     try {
-      const idxRes = await fetch(`data/days-index.json?t=${Date.now()}`, { cache: "no-store" });
+      const idxRes = await fetch(`/data/days-index.json?t=${Date.now()}`, { cache: "no-store" });
       if (!idxRes.ok) throw new Error(`HTTP ${idxRes.status}`);
       let dates = await idxRes.json();
       if (!Array.isArray(dates) || dates.length === 0) { this.ready = true; return false; }
@@ -70,7 +70,7 @@ const Empirical = {
 
       const days = await Promise.all(dates.map(async (d) => {
         try {
-          const r = await fetch(`data/day-${d}.json?t=${Date.now()}`, { cache: "no-store" });
+          const r = await fetch(`/data/day-${d}.json?t=${Date.now()}`, { cache: "no-store" });
           return r.ok ? await r.json() : null;
         } catch { return null; }
       }));

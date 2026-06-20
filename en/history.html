@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Past Wait-Time Data | TDR Wait Times</title>
+  <meta name="description" content="Daily records of actual Tokyo Disneyland and DisneySea wait times, automatically collected.">
+  <link rel="canonical" href="https://tdr-wait-time.com/en/history.html">
+  <link rel="alternate" hreflang="ja" href="https://tdr-wait-time.com/history.html">
+  <link rel="alternate" hreflang="en" href="https://tdr-wait-time.com/en/history.html">
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div>
+        <h1><span class="spark">📊</span> Past Wait-Time Data</h1>
+        <div class="subtitle">Automatically collected records of actual wait times (by day)</div>
+      </div>
+      <div class="header-right">
+        <a class="nav-link" href="/history.html">日本語</a>
+        <a class="nav-link" href="index.html">← Back to forecast</a>
+      </div>
+    </header>
+
+    <section class="controls">
+      <div class="field">
+        <label for="dateSelect">Date</label>
+        <select id="dateSelect"></select>
+      </div>
+      <div class="field">
+        <label>Park</label>
+        <div class="park-tabs inline" id="parkTabs">
+          <button data-park="TDL" class="active">Land</button>
+          <button data-park="TDS">Sea</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="sortSelect">Sort</label>
+        <select id="sortSelect">
+          <option value="avg">Highest average</option>
+          <option value="max">Highest max</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+    </section>
+
+    <div class="model-badge" id="info">Loading…</div>
+
+    <div class="section-title" id="sectionTitle">Daily records</div>
+    <div id="tableWrap"></div>
+
+    <footer class="note">
+      ※ Wait times are real standby data auto-collected every 10 minutes. Times are in Japan Standard Time (JST).<br />
+      Data source: <a href="https://tokyodisneyresort.info/" target="_blank" rel="noopener">tokyodisneyresort.info</a> (unofficial). This site is not affiliated with the official Tokyo Disney Resort.
+    </footer>
+  </div>
+
+  <script src="../data.js"></script>
+  <script src="../i18n.js"></script>
+  <script src="../history.js"></script>
+</body>
+</html>
