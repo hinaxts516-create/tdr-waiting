@@ -1,12 +1,13 @@
 name: Collect wait times
 
-# ライブ待ち時間を定期収集して data/ にコミットする
+# 当日の履歴(30分刻みの全時系列)を収集して data/day-YYYY-MM-DD.json にコミットする。
+# ライブの直近値(live-latest.json)は collect-live.yml が15分ごとに別途更新する。
 on:
   schedule:
-    # cron は UTC。毎時 :07 と :37（UTC 0〜13 ≒ JST 9〜22）に実行。
-    # ※ :00 ちょうどは混雑で間引かれやすいため避ける。
-    # ※ 履歴(attrWait)は1回で当日全体を取得できるため、多少間引かれても当日分は揃う。
-    - cron: "7,37 0-13 * * *"
+    # cron は UTC。毎時 :37（UTC 0〜13 ≒ JST 9〜22）に1回。
+    # 履歴(attrWait)は1回で当日全体を取得できるため毎時1回で十分（負荷も軽減）。
+    # 取りこぼしは data-freshness-check.yml が閉園前後に自己修復＋通知する。
+    - cron: "37 0-13 * * *"
   workflow_dispatch: {} # 手動実行も可能（テスト用）
 
 # data/ への push に必要
@@ -28,9 +29,6 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Collect live snapshot (current)
-        run: node scripts/collect-info.mjs
-
       - name: Collect daily history (full-day series)
         run: node scripts/collect-history.mjs
 
@@ -43,7 +41,7 @@ jobs:
             echo "変更なし（スキップ）"
           else
             git commit -m "data: collect wait times $(date -u +%Y-%m-%dT%H:%MZ)"
-            # 同期ワークフローと push が競合しうるので rebase してリトライ
+            # 他ワークフローと push が競合しうるので rebase してリトライ
             for i in 1 2 3 4 5; do
               git pull --rebase origin main && git push && break || { echo "push retry $i"; sleep 5; }
             done

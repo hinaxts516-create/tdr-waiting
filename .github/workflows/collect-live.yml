@@ -1,0 +1,46 @@
+name: Collect live snapshot
+
+# ライブの待ち時間スナップショット(data/live-latest.json)を 15 分ごとに更新する。
+# collect-info.mjs は realtime ページ2つ(land/sea)を取るだけの軽い処理なので高頻度でも負荷は小さい。
+# 重い当日履歴(attrWait・全施設)は collect-wait-times.yml 側で頻度を抑えて取得する。
+on:
+  schedule:
+    # UTC。JST 9:02〜22:47 を 15 分間隔（:00ちょうどは混雑で間引かれやすいため避ける）。
+    - cron: "2,17,32,47 0-13 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# ライブ収集ジョブが重ならないようにする
+concurrency:
+  group: collect-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Collect live snapshot (current)
+        run: node scripts/collect-info.mjs
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/live-latest.json data/waits-*.csv
+          if git diff --staged --quiet; then
+            echo "変更なし（スキップ）"
+          else
+            git commit -m "data: live snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
+            # 他ワークフローと push が競合しうるので rebase してリトライ
+            for i in 1 2 3 4 5; do
+              git pull --rebase origin main && git push && break || { echo "push retry $i"; sleep 5; }
+            done
+          fi
