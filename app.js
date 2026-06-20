@@ -111,6 +111,11 @@ function init() {
   loadEmpirical(); // 蓄積した実測履歴で予測プロファイルを構築
   loadLive();      // 起動時にバックグラウンドで実データ取得
   loadForecast();  // 直近数日の実天気予報を取得
+
+  // ライブ実データの自動リフレッシュ（サーバ側は15分ごとに更新）。
+  // 5分ごとに静かに再取得し、タブに戻ったときも即更新する。
+  setInterval(() => loadLive(true), 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) loadLive(true); });
 }
 
 /* ---- 実測履歴の取り込み（予測の土台にする） ---- */
@@ -129,9 +134,10 @@ async function loadForecast() {
   render(); // 取得後に予測天候表示・予測値を更新
 }
 
-/* ---- 実データの取得と状態表示 ---- */
-async function loadLive() {
-  setModeStatus("loading");
+/* ---- 実データの取得と状態表示 ----
+ *  quiet=true: 自動リフレッシュ用（「取得中…」を出さず静かに更新） */
+async function loadLive(quiet) {
+  if (!quiet) setModeStatus("loading");
   await RealTime.fetchAll();
   setModeStatus();
   if (state.mode === "live") render();
