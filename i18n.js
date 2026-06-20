@@ -102,6 +102,13 @@ const I18N_ALL = {
     noLiveData: "実データなし",
     liveFetchFail: "実データを取得できませんでした。「予測」モードをご利用ください。",
 
+    emptyTitle: (park, dateStr) => `${park} ／ ${dateStr} 空き始め予測`,
+    emptyStart: "空き始め",
+    emptyHour: (h) => `${h}時`,
+    emptyPeak: (h, w) => `ピーク ${h}時 (${w}分)`,
+    allDayBusy: "終日混雑",
+    alwaysEmpty: "ずっと空いている",
+
     nowLiveWait: "現在の実待ち時間",
     nowActual: "指定時刻の実測",
     nowPredict: "指定時刻の予測",
@@ -171,6 +178,13 @@ const I18N_ALL = {
     liveTitle: (park) => `${park} / Current real-time wait times`,
     noLiveData: "No live data",
     liveFetchFail: "Couldn't load live data. Please use Forecast mode.",
+
+    emptyTitle: (park, dateStr) => `${park} / ${dateStr} easing-time forecast`,
+    emptyStart: "Eases by",
+    emptyHour: (h) => `${h}:00`,
+    emptyPeak: (h, w) => `Peak ${h}:00 (${w} min)`,
+    allDayBusy: "Busy all day",
+    alwaysEmpty: "Always short",
 
     nowLiveWait: "Current actual wait",
     nowActual: "Actual at selected time",

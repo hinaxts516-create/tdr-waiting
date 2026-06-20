@@ -26,6 +26,9 @@ function clampHour(h) {
 
 const $ = (id) => document.getElementById(id);
 
+/* 「空き始め」の定義: その日のピーク待ち時間からこの割合だけ下がって以降の最初の時刻 */
+const EMPTY_DROP = 0.30; // = ピーク比 70% 以下になる最初の時刻
+
 /* 待ち時間 → 混雑レベルのラベル/クラス */
 function level(wait) {
   if (wait <= 20) return { cls: "lv-low", text: L.level.low };
@@ -167,7 +170,67 @@ function render() {
   // 予測天候の表示を更新（直近は実予報、以降は平年）
   const { weather: w, source } = resolveWeather(state.date);
   $("weatherPred").textContent = L.weatherPred(L.weatherEmoji[w], L.source[source]);
-  state.mode === "live" ? renderLive() : renderPredict();
+  if (state.mode === "live") renderLive();
+  else if (state.mode === "empty") renderEmpty();
+  else renderPredict();
+}
+
+/* 1日の予測カーブからピークと「空き始め時刻」を求める。
+ *  - peak.wait が空いている水準(<=20分)なら終日空いている扱い
+ *  - ピーク後に「ピーク×(1-EMPTY_DROP)」以下になる最初の時刻を返す（無ければ null=終日混雑） */
+function emptyStartInfo(curve) {
+  let peak = curve[0];
+  for (const c of curve) if (c.wait > peak.wait) peak = c;
+  if (peak.wait <= 20) return { peak, hour: null, alwaysEmpty: true };
+  const target = peak.wait * (1 - EMPTY_DROP);
+  for (const c of curve) if (c.hour > peak.hour && c.wait <= target) return { peak, hour: c.hour, alwaysEmpty: false };
+  return { peak, hour: null, alwaysEmpty: false };
+}
+
+/* 空き始めモード: アトラクション別に「空き始め時刻」を一覧表示 */
+function renderEmpty() {
+  const weather = resolveWeather(state.date).weather;
+  const rows = ATTRACTIONS[state.park].map((att) => {
+    if (att.closed) return { att, closed: true };
+    const curve = Predictor.dayCurve(att, state.date, weather);
+    return { att, closed: false, ...emptyStartInfo(curve) };
+  });
+
+  // 空き始めが早い順。終日混雑・終日空き・休止は末尾へ。
+  const rank = (r) => (r.closed ? 4 : r.alwaysEmpty ? 3 : r.hour == null ? 2 : 0);
+  rows.sort((a, b) => (rank(a) - rank(b)) || ((a.hour ?? 99) - (b.hour ?? 99)));
+
+  $("sectionTitle").textContent = L.emptyTitle(parkLabel(state.park), L.fmtMDDow(state.date));
+
+  const grid = $("grid");
+  grid.innerHTML = "";
+  for (const r of rows) {
+    const card = document.createElement("div");
+    card.className = "card";
+    let body;
+    if (r.closed) {
+      card.classList.add("dim");
+      body = `<div class="status-txt">${L.closed}</div>`;
+    } else if (r.alwaysEmpty) {
+      card.classList.add("dim");
+      body = `<div class="status-txt">${L.alwaysEmpty}</div>`;
+    } else if (r.hour == null) {
+      card.classList.add("dim");
+      body = `<div class="status-txt">${L.allDayBusy}</div>
+              <div class="meta">${L.emptyPeak(r.peak.hour, r.peak.wait)}</div>`;
+    } else {
+      body = `<div class="wait"><span class="num">${L.emptyHour(r.hour)}</span><span class="unit">〜</span></div>
+              <span class="badge lv-low">${L.emptyStart}</span>
+              <div class="meta">${L.emptyPeak(r.peak.hour, r.peak.wait)}</div>`;
+    }
+    card.innerHTML = `
+      <div class="name">${attName(r.att)}</div>
+      <div class="meta">${attMeta(r.att)}</div>
+      ${body}
+    `;
+    card.addEventListener("click", () => openModal(r.att));
+    grid.appendChild(card);
+  }
 }
 
 /* 予測モード */
