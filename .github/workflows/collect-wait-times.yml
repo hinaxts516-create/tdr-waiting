@@ -29,8 +29,9 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Collect daily history (full-day series)
-        run: node scripts/collect-history.mjs
+      # 履歴はライブ実測(CSV)から組み立てる（毎時のバックアップ実行）。
+      - name: Rebuild today's history from live snapshots
+        run: node scripts/build-history.mjs
 
       - name: Commit & push if changed
         run: |

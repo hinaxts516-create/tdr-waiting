@@ -44,7 +44,7 @@ jobs:
           fi
           echo "⚠ $f が無い → 収集を試みます（自己修復）"
           node scripts/collect-info.mjs || true
-          node scripts/collect-history.mjs || true
+          node scripts/build-history.mjs || true
 
       - name: Commit & push if changed
         run: |
