@@ -1,0 +1,71 @@
+name: Data freshness check
+
+# 当日(JST)の履歴 data/day-YYYY-MM-DD.json が無ければ収集を試み（自己修復）、
+# それでも無ければジョブを失敗させて気づけるようにする安全網。
+#   - GitHub 内蔵 cron はベストエフォート（実行保証なし）。過去に2日連続スキップで
+#     収集漏れが起きたため、閉園前後に独立した最終トリガ＋検知を行う。
+#   - 収集元は「当日」しか返さないため、検知はその日のうちに行う必要がある
+#     （翌日では遡及取得できない）。
+#   - スケジュール失敗は GitHub から実行者へメール通知されるため、当日中に
+#     手動実行(workflow_dispatch)で取りこぼしを救済できる。
+on:
+  schedule:
+    - cron: "50 12 * * *" # 21:50 JST（閉園前の最終収集トリガ）
+    - cron: "50 13 * * *" # 22:50 JST（最終確認＋自己修復）
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# 収集ワークフローと多重 push しないよう同じグループにする
+concurrency:
+  group: collect-wait-times
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Resolve JST date
+        id: d
+        run: echo "date=$(date -u -d '+9 hours' +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Collect if today's history is missing
+        run: |
+          f="data/day-${{ steps.d.outputs.date }}.json"
+          if [ -f "$f" ]; then
+            echo "✓ $f は既に収集済み"; exit 0
+          fi
+          echo "⚠ $f が無い → 収集を試みます（自己修復）"
+          node scripts/collect-info.mjs || true
+          node scripts/collect-history.mjs || true
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --staged --quiet; then
+            echo "変更なし（スキップ）"
+          else
+            git commit -m "data: freshness catch-up $(date -u +%Y-%m-%dT%H:%MZ)"
+            for i in 1 2 3 4 5; do
+              git pull --rebase origin main && git push && break || { echo "push retry $i"; sleep 5; }
+            done
+          fi
+
+      - name: Assert today's history exists
+        run: |
+          f="data/day-${{ steps.d.outputs.date }}.json"
+          if [ -f "$f" ]; then
+            echo "✓ $f を確認"
+          else
+            echo "::error::$f が収集できませんでした。休園日でなければ、当日中に手動で収集ワークフローを実行してください（翌日以降は遡及取得できません）。"
+            exit 1
+          fi
