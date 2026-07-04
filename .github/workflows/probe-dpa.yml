@@ -1,0 +1,17 @@
+name: Probe DPA source
+
+# 調査用（一時）: DPA販売状況データの在り処を Actions 上で確認する。
+# 手動実行のみ。コミットはしない（ログを見るだけ）。
+on:
+  workflow_dispatch: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Probe
+        run: node scripts/probe-dpa.mjs
