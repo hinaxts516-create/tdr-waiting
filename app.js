@@ -141,7 +141,7 @@ async function loadForecast() {
  *  quiet=true: 自動リフレッシュ用（「取得中…」を出さず静かに更新） */
 async function loadLive(quiet) {
   if (!quiet) setModeStatus("loading");
-  await RealTime.fetchAll();
+  await Promise.all([RealTime.fetchAll(), MaxWaits.load()]); // 実データ＋過去最大
   setModeStatus();
   if (state.mode === "live") render();
 }
@@ -303,8 +303,11 @@ function renderLive() {
     let body;
     if (operating) {
       const lv = level(live.wait);
+      const max = MaxWaits.get(att);
+      const queue = MaxWaits.isQueueTime(att, live.wait);
       body = `<div class="wait"><span class="num">${live.wait}</span><span class="unit">${L.unit}</span></div>
-              <span class="badge ${lv.cls}">${lv.text}</span>${dpaChipHtml(att, live.wait)}`;
+              <span class="badge ${lv.cls}">${lv.text}</span>${queue ? `<span class="badge lv-low">${L.queueTime}</span>` : ""}${dpaChipHtml(att, live.wait)}
+              ${max != null ? `<div class="meta">${L.pastMax(max)}</div>` : ""}`;
     } else if (live) {
       card.classList.add("dim");
       body = `<div class="status-txt">${tStatus(live.status)}</div>`;
