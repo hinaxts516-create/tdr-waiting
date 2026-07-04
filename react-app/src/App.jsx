@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ATTRACTIONS, PARK_LABELS, PARK_HOURS } from "./data.js";
 import { WaitModel, computeCrowdIndex, WEATHER_LABEL } from "./model.js";
 import { RealTime } from "./realtime.js";
+import { reportMaxWaits, isQueueTime, QUEUE_THRESHOLD } from "./firebase.js";
 
 /* ---- ヘルパー ---- */
 function level(wait) {
@@ -170,6 +171,7 @@ export default function App() {
   const [metrics, setMetrics] = useState(null);
   const [liveTick, setLiveTick] = useState(0);
   const [liveState, setLiveState] = useState("idle"); // idle|loading|ok|err
+  const [maxWaits, setMaxWaits] = useState({}); // { att.id: 過去最大待ち分 }（Firestore）
 
   // モデル学習（初回マウント時）
   useEffect(() => {
@@ -180,6 +182,19 @@ export default function App() {
     setLiveState("loading");
     await RealTime.fetchAll();
     setLiveState(RealTime.ok ? "ok" : "err");
+    // 全アトラクションの現在待ち時間を集め、Firestore の過去最大を更新＆取得
+    if (RealTime.ok) {
+      const currentById = {};
+      for (const p of ["TDL", "TDS"]) {
+        for (const att of ATTRACTIONS[p]) {
+          const live = RealTime.get(att);
+          if (live && live.status === "OPERATING" && live.wait != null) {
+            currentById[att.id] = live.wait;
+          }
+        }
+      }
+      reportMaxWaits(currentById).then((m) => setMaxWaits(m || {}));
+    }
     setLiveTick((t) => t + 1);
   }, []);
 
@@ -315,7 +330,14 @@ export default function App() {
           if (mode === "live") {
             if (row.operating) {
               const lv = level(row.live.wait);
-              body = <><div className="wait"><span className="num">{row.live.wait}</span><span className="unit">分</span></div><span className={"badge " + lv.cls}>{lv.text}</span></>;
+              const max = maxWaits[att.id];
+              const queue = isQueueTime(row.live.wait, max);
+              body = <>
+                <div className="wait"><span className="num">{row.live.wait}</span><span className="unit">分</span></div>
+                <span className={"badge " + lv.cls}>{lv.text}</span>
+                {queue && <span className="badge lv-low">🎯 並び時</span>}
+                {typeof max === "number" && <div className="meta">過去最大 {max}分</div>}
+              </>;
             } else if (row.live) {
               dim = true;
               body = <div className="status-txt">{RealTime.statusLabel(row.live.status)}</div>;

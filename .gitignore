@@ -7,3 +7,6 @@ Desktop.ini
 # エディタ
 .vscode/
 *.swp
+
+# Node（依存はコミットせず package.json / package-lock.json のみ管理）
+node_modules/
