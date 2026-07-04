@@ -5,12 +5,12 @@
  *   ※ 公式(tokyodisneyresort.jp)はデータセンターIPを403拒否するため使えない。
  *   GitHub Actions 上で実行し、ログを見て収集方法を設計する。
  * ========================================================================= */
-const UA = "Mozilla/5.0 (compatible; tdr-wait-time/1.0; +https://tdr-wait-time.com)";
-const KEYWORDS = ["プレミアアクセス", "プレミア", "ＤＰＡ", "DPA", "販売終了", "販売中", "発売", "完売", "売り切れ", "有料", "Premier", "アクセス", "円", "¥", "対象"];
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+const KEYWORDS = ["プレミアアクセス", "プレミア", "ＤＰＡ", "DPA", "PremierAccess", "premier", "販売終了", "販売中", "発売", "完売", "売り切れ", "有料", "standby", "operating", "dpa", "fpStatus", "TicketStore"];
 
-async function get(url) {
+async function get(url, extraHeaders) {
   try {
-    const r = await fetch(url, { headers: { "User-Agent": UA } });
+    const r = await fetch(url, { headers: { "User-Agent": UA, "Accept": "application/json,text/html,*/*", ...(extraHeaders || {}) } });
     const body = r.ok ? await r.text() : "";
     return { ok: r.ok, status: r.status, body };
   } catch (e) {
@@ -31,30 +31,24 @@ function keywordHits(html) {
 }
 
 async function main() {
+  // 公式が使う realtime JSON エンドポイント候補（DPA/スタンバイパスを含む可能性）
+  const officialHeaders = { "Referer": "https://www.tokyodisneyresort.jp/tdl/attraction.html", "X-Requested-With": "XMLHttpRequest" };
   const targets = [
-    "https://tokyodisneyresort.info/realtime.php?park=land&order=name",
-    "https://tokyodisneyresort.info/realtime.php?park=sea&order=name",
-    "https://tokyodisneyresort.info/",
-    "https://tokyodisneyresort.info/premieraccess.php",
-    "https://tokyodisneyresort.info/dpa.php",
-    "https://tokyodisneyresort.info/pa.php",
+    ["https://www.tokyodisneyresort.jp/_/realtime/tdl_attraction.json", officialHeaders],
+    ["https://www.tokyodisneyresort.jp/_/realtime/tds_attraction.json", officialHeaders],
+    ["https://www.tokyodisneyresort.jp/_/realtime/tdl.json", officialHeaders],
+    ["https://api.tokyodisneyresort.jp/rt/tdl/attraction", officialHeaders],
+    ["https://www.tokyodisneyresort.jp/tdl/attraction.html", officialHeaders],
   ];
 
-  for (const url of targets) {
-    const r = await get(url);
+  for (const [url, h] of targets) {
+    const r = await get(url, h);
     console.log(`\n===== ${url}`);
     console.log(`   HTTP ${r.status}  length=${r.body.length}${r.err ? "  err=" + r.err : ""}`);
     if (!r.ok) continue;
+    console.log("   先頭300字: " + r.body.slice(0, 300).replace(/\s+/g, " "));
     const hits = keywordHits(r.body);
     console.log(hits.length ? "   キーワード出現:\n" + hits.join("\n") : "   （DPA関連キーワードなし）");
-  }
-
-  // realtime.php の最初のアトラクション1件のHTMLブロックを丸ごと出力（構造確認用）
-  const rt = await get(targets[0]);
-  if (rt.ok) {
-    const m = rt.body.match(/<a href="attrWait\.php\?attr_id=(\d+)&park=\w+">([\s\S]*?)<\/a>/);
-    console.log("\n===== realtime.php 先頭アトラクションの生HTMLブロック =====");
-    console.log(m ? m[0].replace(/\s+/g, " ").slice(0, 1200) : "（ブロック抽出できず）");
   }
 }
 main().catch((e) => { console.error(e); process.exit(1); });
