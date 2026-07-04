@@ -101,6 +101,8 @@ const I18N_ALL = {
     liveTitle: (park) => `${park} ／ 現在のリアルタイム待ち時間`,
     noLiveData: "実データなし",
     liveFetchFail: "実データを取得できませんでした。「予測」モードをご利用ください。",
+    queueTime: "🎯 並び時",
+    pastMax: (n) => `過去最大 ${n}分`,
 
     emptyTitle: (park, dateStr) => `${park} ／ ${dateStr} 空き始め予測`,
     emptyStart: "空き始め",
@@ -178,6 +180,8 @@ const I18N_ALL = {
     liveTitle: (park) => `${park} / Current real-time wait times`,
     noLiveData: "No live data",
     liveFetchFail: "Couldn't load live data. Please use Forecast mode.",
+    queueTime: "🎯 Go now",
+    pastMax: (n) => `Past max ${n} min`,
 
     emptyTitle: (park, dateStr) => `${park} / ${dateStr} easing-time forecast`,
     emptyStart: "Eases by",
